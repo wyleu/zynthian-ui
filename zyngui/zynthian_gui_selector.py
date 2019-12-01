@@ -34,13 +34,7 @@ from PIL import Image, ImageTk
 from zyngine import zynthian_controller
 from . import zynthian_gui_config
 from . import zynthian_gui_controller
-
-#------------------------------------------------------------------------------
-# Configure logging
-#------------------------------------------------------------------------------
-
-# Set root logging level
-logging.basicConfig(stream=sys.stderr, level=zynthian_gui_config.log_level)
+from zyngui.zynthian_gui_keybinding import zynthian_gui_keybinding
 
 #------------------------------------------------------------------------------
 # Zynthian Listbox Selector GUI Class
@@ -105,6 +99,7 @@ class zynthian_gui_selector:
 			width=zynthian_gui_config.display_width,
 			height=zynthian_gui_config.display_height,
 			bg=zynthian_gui_config.color_bg)
+		self.main_frame.bind("<Key>", self.cb_keybinding)
 
 		# Topbar's frame
 		self.tb_frame = tkinter.Frame(self.main_frame, 
@@ -189,6 +184,7 @@ class zynthian_gui_selector:
 		self.listbox.bind("<B1-Motion>",self.cb_listbox_motion)
 		self.listbox.bind("<Button-4>",self.cb_listbox_wheel)
 		self.listbox.bind("<Button-5>",self.cb_listbox_wheel)
+		self.listbox.bind("<Key>", self.cb_keybinding)
 
 		# Canvas for loading image animation
 		self.loading_canvas = tkinter.Canvas(self.main_frame,
@@ -221,6 +217,7 @@ class zynthian_gui_selector:
 		self.fill_list()
 		self.set_selector()
 		self.set_select_path()
+		self.main_frame.focus()
 
 
 	def hide(self):
@@ -461,13 +458,14 @@ class zynthian_gui_selector:
 
 
 	def set_selector(self):
-		if self.zselector:
-			self.zselector_ctrl.set_options({ 'symbol':self.selector_caption, 'name':self.selector_caption, 'short_name':self.selector_caption, 'midi_cc':0, 'value_max':len(self.list_data), 'value':self.index })
-			self.zselector.config(self.zselector_ctrl)
-			self.zselector.show()
-		else:
-			self.zselector_ctrl=zynthian_controller(None,self.selector_caption,self.selector_caption,{ 'midi_cc':0, 'value_max':len(self.list_data), 'value':self.index })
-			self.zselector=zynthian_gui_controller(zynthian_gui_config.select_ctrl,self.main_frame,self.zselector_ctrl)
+		if self.shown:
+			if self.zselector:
+				self.zselector_ctrl.set_options({ 'symbol':self.selector_caption, 'name':self.selector_caption, 'short_name':self.selector_caption, 'midi_cc':0, 'value_max':len(self.list_data), 'value':self.index })
+				self.zselector.config(self.zselector_ctrl)
+				self.zselector.show()
+			else:
+				self.zselector_ctrl=zynthian_controller(None,self.selector_caption,self.selector_caption,{ 'midi_cc':0, 'value_max':len(self.list_data), 'value':self.index })
+				self.zselector=zynthian_gui_controller(zynthian_gui_config.select_ctrl,self.main_frame,self.zselector_ctrl)
 
 
 	def fill_list(self):
@@ -491,7 +489,7 @@ class zynthian_gui_selector:
 
 
 	def zyncoder_read(self):
-		if self.zselector:
+		if self.shown and self.zselector:
 			self.zselector.read_zyncoder()
 			if self.index!=self.zselector.value:
 				self.select(self.zselector.value)
@@ -521,7 +519,7 @@ class zynthian_gui_selector:
 	def select(self, index=None):
 		if index is None: index=self.index
 		self.select_listbox(index)
-		if self.zselector and self.zselector.value!=self.index:
+		if self.shown and self.zselector and self.zselector.value!=self.index:
 			self.zselector.set_value(self.index, True)
 
 
@@ -642,5 +640,28 @@ class zynthian_gui_selector:
 			self.label_select_path.place(x=0, y=0)
 
 		return False
+
+
+	def cb_keybinding(self, event):
+		logging.debug("Key press {} {}".format(event.keycode, event.keysym))
+
+		if not zynthian_gui_keybinding.getInstance().isEnabled():
+			logging.debug("Key binding is disabled - ignoring key press")
+			return
+		
+		# Ignore TAB key (for now) to avoid confusing widget focus change
+		if event.keysym == "Tab":
+			return
+
+		# Space is not recognised as keysym so need to convert keycode
+		if event.keycode == 65:
+			keysym = "Space"
+		else:
+			keysym = event.keysym
+
+		action = zynthian_gui_keybinding.getInstance().get_key_action(keysym, event.state)
+		if action != None:
+			self.zyngui.callable_ui_action(action)
+
 
 #------------------------------------------------------------------------------

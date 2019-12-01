@@ -33,13 +33,6 @@ from . import zynthian_gui_config
 from . import zynthian_gui_selector
 
 #------------------------------------------------------------------------------
-# Configure logging
-#------------------------------------------------------------------------------
-
-# Set root logging level
-logging.basicConfig(stream=sys.stderr, level=zynthian_gui_config.log_level)
-
-#------------------------------------------------------------------------------
 # Zynthian MIDI Channel Selection GUI Class
 #------------------------------------------------------------------------------
 
@@ -109,7 +102,9 @@ class zynthian_gui_midi_chan(zynthian_gui_selector):
 			root_layer=self.zyngui.screens['layer_options'].layer
 			for layer in self.zyngui.screens['layer'].get_fxchain_layers(root_layer):
 				layer.set_midi_chan(selchan)
+				logging.info("LAYER {} -> MIDI CHANNEL = {}".format(layer.get_path(), selchan))
 
+			self.zyngui.zynautoconnect_midi(True)
 			self.zyngui.show_modal('layer_options')
 
 		elif self.mode=='CLONE':
@@ -120,6 +115,8 @@ class zynthian_gui_midi_chan(zynthian_gui_selector):
 				else:
 					zyncoder.lib_zyncoder.set_midi_filter_clone(self.midi_chan, selchan, 1)
 					self.fill_list()
+
+				logging.info("CLONE MIDI CHANNEL {} => {}".format(self.midi_chan, selchan))
 
 
 	def back_action(self):
