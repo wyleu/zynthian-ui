@@ -23,6 +23,7 @@
 # 
 #******************************************************************************
 
+import os
 import sys
 import logging
 import re
@@ -32,7 +33,6 @@ from collections import OrderedDict
 
 # Zynthian specific modules
 import zynautoconnect
-import os
 from zyngine import *
 from zyngine.zynthian_engine_pianoteq import *
 from zyngine.zynthian_engine_jalv import *
@@ -57,6 +57,7 @@ class zynthian_gui_engine(zynthian_gui_selector):
 	def init_engine_info(cls):
 
 		cls.engine_info=OrderedDict([
+			["MX", ("Mixer", "ALSA Mixer", "MIXER", zynthian_engine_mixer)],
 			["ZY", ("ZynAddSubFX", "ZynAddSubFX - Synthesizer", "MIDI Synth", zynthian_engine_zynaddsubfx)],
 			["FS", ("FluidSynth", "FluidSynth - SF2 Player", "MIDI Synth", zynthian_engine_fluidsynth)],
 			["LS", ("LinuxSampler", "LinuxSampler - SFZ/GIG Player", "MIDI Synth", zynthian_engine_linuxsampler)],

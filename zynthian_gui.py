@@ -48,6 +48,7 @@ from zyncoder import *
 from zyncoder.zyncoder import lib_zyncoder, lib_zyncoder_init
 from zyngine import zynthian_zcmidi
 from zyngine import zynthian_midi_filter
+from zyngine import zynthian_engine_transport
 from zyngui import zynthian_gui_config
 from zyngui.zynthian_gui_controller import zynthian_gui_controller
 from zyngui.zynthian_gui_selector import zynthian_gui_selector
@@ -178,7 +179,6 @@ class zynthian_gui:
 	# MIDI Router Init & Config
 	# ---------------------------------------------------------------------------
 
-
 	def init_midi(self):
 		try:
 			global lib_zyncoder
@@ -216,7 +216,6 @@ class zynthian_gui:
 	# ---------------------------------------------------------------------------
 	# OSC Management
 	# ---------------------------------------------------------------------------
-
 
 	def osc_init(self, port=1370, proto=liblo.UDP):
 		try:
@@ -264,27 +263,29 @@ class zynthian_gui:
 	# GUI Core Management
 	# ---------------------------------------------------------------------------
 
-
 	def start(self):
 		# Create initial GUI Screens
-		self.screens['admin']=zynthian_gui_admin()
-		self.screens['info']=zynthian_gui_info()
-		self.screens['snapshot']=zynthian_gui_snapshot()
-		self.screens['layer']=zynthian_gui_layer()
-		self.screens['layer_options']=zynthian_gui_layer_options()
-		self.screens['engine']=zynthian_gui_engine()
-		self.screens['midi_chan']=zynthian_gui_midi_chan()
-		self.screens['transpose']=zynthian_gui_transpose()
-		self.screens['audio_out']=zynthian_gui_audio_out()
-		self.screens['bank']=zynthian_gui_bank()
-		self.screens['preset']=zynthian_gui_preset()
-		self.screens['control']=zynthian_gui_control()
-		self.screens['control_xy']=zynthian_gui_control_xy()
-		self.screens['midi_profile']=zynthian_gui_midi_profile()
-		self.screens['audio_recorder']=zynthian_gui_audio_recorder()
-		self.screens['midi_recorder']=zynthian_gui_midi_recorder()
-		self.screens['zs3_learn']=zynthian_gui_zs3_learn()
-		self.screens['confirm']=zynthian_gui_confirm()
+		self.screens['admin'] = zynthian_gui_admin()
+		self.screens['info'] = zynthian_gui_info()
+		self.screens['snapshot'] = zynthian_gui_snapshot()
+		self.screens['layer'] = zynthian_gui_layer()
+		self.screens['layer_options'] = zynthian_gui_layer_options()
+		self.screens['engine'] = zynthian_gui_engine()
+		self.screens['midi_chan'] = zynthian_gui_midi_chan()
+		self.screens['transpose'] = zynthian_gui_transpose()
+		self.screens['audio_out'] = zynthian_gui_audio_out()
+		self.screens['bank'] = zynthian_gui_bank()
+		self.screens['preset'] = zynthian_gui_preset()
+		self.screens['control'] = zynthian_gui_control()
+		self.screens['control_xy'] = zynthian_gui_control_xy()
+		self.screens['midi_profile'] = zynthian_gui_midi_profile()
+		self.screens['audio_recorder'] = zynthian_gui_audio_recorder()
+		self.screens['midi_recorder'] = zynthian_gui_midi_recorder()
+		self.screens['zs3_learn'] = zynthian_gui_zs3_learn()
+		self.screens['confirm'] = zynthian_gui_confirm()
+
+		# Add Mixer Layer
+		self.screens['layer'].add_layer_mixer()
 
 		# Show initial screen => Channel list
 		self.show_screen('layer')
@@ -295,6 +296,9 @@ class zynthian_gui:
 
 		# Init Auto-connector (and call it for first time!)
 		zynautoconnect.start()
+
+		# Initialize jack Transport
+		self.zyntransport = zynthian_engine_transport()
 
 		# Initialize OSC
 		self.osc_init()
@@ -329,6 +333,7 @@ class zynthian_gui:
 		self.osc_end()
 		zynautoconnect.stop()
 		self.screens['layer'].reset()
+		self.zyntransport.stop()
 
 
 	def hide_screens(self,exclude=None):
@@ -459,6 +464,9 @@ class zynthian_gui:
 		active_chan = -1
 
 		if self.curlayer:
+			# Don't change nothing for MIXER
+			if self.curlayer.engine.nickname=='MX':
+				return
 			curlayer_chan = self.curlayer.get_midi_chan()
 			if curlayer_chan is None:
 				curlayer_chan = -1
@@ -1413,20 +1421,30 @@ if zynthian_gui_config.wiring_layout=="EMULATOR":
 
 def exit_handler(signo, stack_frame):
 	logging.info("Catch Exit Signal ({}) ...".format(signo))
-	if signo==signal.SIGINT:
-		exit_code=100
+	if signo==signal.SIGHUP:
+		exit_code = 0
+	elif signo==signal.SIGINT:
+		exit_code = 100
 	elif signo==signal.SIGQUIT:
-		exit_code=0
+		exit_code = 102
 	elif signo==signal.SIGTERM:
-		exit_code=101
+		exit_code = 101
 
 	zyngui.exit(exit_code)
 
 
+signal.signal(signal.SIGHUP, exit_handler)
 signal.signal(signal.SIGINT, exit_handler)
 signal.signal(signal.SIGQUIT, exit_handler)
 signal.signal(signal.SIGTERM, exit_handler)
-#signal.signal(signal.SIGKILL, exit_handler)
+
+
+def delete_window():
+	exit_code = 101
+	zyngui.exit(exit_code)
+
+
+zynthian_gui_config.top.protocol("WM_DELETE_WINDOW", delete_window)
 
 #------------------------------------------------------------------------------
 # TKinter Main Loop

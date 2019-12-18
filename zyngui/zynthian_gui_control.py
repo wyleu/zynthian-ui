@@ -42,23 +42,24 @@ from . import zynthian_gui_selector
 #------------------------------------------------------------------------------
 
 class zynthian_gui_control(zynthian_gui_selector):
-	mode=None
 
-	ctrl_screens={}
-	zcontrollers=[]
-	screen_name=None
+	def __init__(self, selcap='Controllers'):
+		super().__init__(selcap, False)
 
-	zgui_controllers=[]
-	zgui_controllers_map={}
+		self.mode=None
 
-	# xyselect mode vars
-	xyselect_mode=False
-	x_zctrl=None
-	y_zctrl=None
+		self.ctrl_screens={}
+		self.zcontrollers=[]
+		self.screen_name=None
 
+		self.zgui_controllers=[]
+		self.zgui_controllers_map={}
 
-	def __init__(self):
-		super().__init__('Controllers',False)
+		# xyselect mode vars
+		self.xyselect_mode=False
+		self.x_zctrl=None
+		self.y_zctrl=None
+
 		# Create Lock object to avoid concurrence problems
 		self.lock=Lock();
 		# Create "pusher" canvas => used in mode "select"
@@ -77,8 +78,8 @@ class zynthian_gui_control(zynthian_gui_selector):
 
 
 	def hide(self):
+		super().hide()
 		if self.shown:
-			super().hide()
 			for zc in self.zgui_controllers: zc.hide()
 			if self.zselector: self.zselector.hide()
 
@@ -430,7 +431,7 @@ class zynthian_gui_control(zynthian_gui_selector):
 	def set_select_path(self):
 		if self.zyngui.curlayer:
 			if self.mode=='control' and self.zyngui.midi_learn_mode:
-				self.select_path.set(self.zyngui.curlayer.get_basepath() + " /CTRL MIDI-Learn")
+				self.select_path.set(self.zyngui.curlayer.get_basepath() + "/CTRL MIDI-Learn")
 			else:
 				self.select_path.set(self.zyngui.curlayer.get_presetpath())
 
