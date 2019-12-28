@@ -231,9 +231,9 @@ class zynthian_gui_midi_recorder(zynthian_gui_selector):
 
 		try:
 			if zynthian_gui_config.midi_play_loop:
-				cmd="/usr/local/bin/jack-smf-player -n -l -s -a '{}' -r 63 '{}'".format(self.jack_play_port, fpath)
+				cmd="/usr/local/bin/jack-smf-player -n -l -s -a \"{}\" -r 63 \"{}\"".format(self.jack_play_port, fpath)
 			else:
-				cmd="/usr/local/bin/jack-smf-player -n -s -a '{}' -r 63 '{}'".format(self.jack_play_port, fpath)
+				cmd="/usr/local/bin/jack-smf-player -n -s -a \"{}\" -r 63 \"{}\"".format(self.jack_play_port, fpath)
 
 			logging.info("COMMAND: %s" % cmd)
 
@@ -300,6 +300,14 @@ class zynthian_gui_midi_recorder(zynthian_gui_selector):
 			logging.error("ERROR STOPPING MIDI PLAY: %s" % e)
 			self.zyngui.show_info("ERROR STOPPING MIDI PLAY:\n %s" % e)
 			self.zyngui.hide_info_timer(5000)
+
+
+	def toggle_playing(self):
+		logging.info("TOGGLING MIDI PLAY ...")
+		if self.get_status() in ("PLAY", "PLAY+REC"):
+			self.stop_playing()
+		else:
+			self.start_playing()
 
 
 	def show_playing_bpm(self):

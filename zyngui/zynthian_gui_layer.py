@@ -145,7 +145,8 @@ class zynthian_gui_layer(zynthian_gui_selector):
 
 
 	def layer_options(self):
-		if self.get_layer_selected() is not None:
+		i = self.get_layer_selected()
+		if i is not None and self.root_layers[i].engine.nickname!='MX':
 			self.zyngui.screens['layer_options'].reset()
 			self.zyngui.show_modal('layer_options')
 
@@ -269,9 +270,11 @@ class zynthian_gui_layer(zynthian_gui_selector):
 			if self.curlayer not in self.root_layers:
 				self.index=0
 				try:
-					self.curlayer=self.root_layers[self.index]
+					self.curlayer = self.root_layers[self.index]
 				except:
-					self.curlayer=None
+					self.curlayer = None
+			else:
+				self.index = self.root_layers.index(self.curlayer)
 
 			self.fill_list()
 			self.set_selector()
@@ -357,7 +360,7 @@ class zynthian_gui_layer(zynthian_gui_selector):
 		selected = False
 		for layer in self.layers:
 			mch=layer.get_midi_chan()
-			if mch is None or mch==midich:
+			if layer.engine.nickname!='MX' and (mch is None or mch==midich):
 				if layer.set_preset(preset_index,True) and not selected:
 					try:
 						self.select_action(self.root_layers.index(layer))
@@ -590,7 +593,8 @@ class zynthian_gui_layer(zynthian_gui_selector):
 
 	def set_extended_config(self, xconfigs):
 		for zyngine in self.zyngui.screens['engine'].zyngines.values():
-			zyngine.set_extended_config(xconfigs[zyngine.nickname])
+			if zyngine.nickname in xconfigs:
+				zyngine.set_extended_config(xconfigs[zyngine.nickname])
 
 
 	#----------------------------------------------------------------------------
@@ -655,8 +659,18 @@ class zynthian_gui_layer(zynthian_gui_selector):
 		try:
 			snapshot=JSONDecoder().decode(json)
 
+			first_layer_index = 1
+			remove_mixer_layer = False
+
+			# Check for MIXER layer ...
+			for lss in snapshot['layers']:
+				if lss['engine_nick']=="MX":
+					first_layer_index = 0
+					remove_mixer_layer = True
+					break
+
 			#Clean all layers, but don't stop unused engines
-			self.remove_all_layers(False, True)
+			self.remove_all_layers(False, remove_mixer_layer)
 
 			# Reusing Jalv engine instances raise problems (audio routing & jack names, etc..),
 			# so we stop Jalv engines!
@@ -682,22 +696,22 @@ class zynthian_gui_layer(zynthian_gui_selector):
 				self.set_extended_config(snapshot['extended_config'])
 
 			# Restore layer state, step 1 => Restore Bank & Preset Status
-			i=0
+			i = first_layer_index
 			for lss in snapshot['layers']:
 				self.layers[i].restore_snapshot_1(lss)
-				i+=1
+				i += 1
 
 			# Restore layer state, step 2 => Restore Controllers Status
-			i=0
+			i = first_layer_index
 			for lss in snapshot['layers']:
 				self.layers[i].restore_snapshot_2(lss)
-				i+=1
+				i += 1
 
 			#Fill layer list
 			self.fill_list()
 
 			#Set active layer
-			self.index=snapshot['index']
+			self.index = first_layer_index + snapshot['index']
 			if self.index in self.layers:
 				self.curlayer=self.layers[self.index]
 				self.zyngui.set_curlayer(self.curlayer)
@@ -724,11 +738,11 @@ class zynthian_gui_layer(zynthian_gui_selector):
 				self.reset_audio_routing()
 
 			#Post action
-			if self.list_data[self.index][0] in ('NEW','RESET'):
-				self.index=0
-				self.zyngui.show_screen('layer')
-			else:
+			if self.index<len(self.root_layers):
 				self.select_action(self.index)
+			else:
+				self.index = 0
+				self.zyngui.show_screen('layer')
 
 		except Exception as e:
 			self.zyngui.reset_loading()

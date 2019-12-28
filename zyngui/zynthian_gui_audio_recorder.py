@@ -233,9 +233,9 @@ class zynthian_gui_audio_recorder(zynthian_gui_selector):
 
 		try:
 			if zynthian_gui_config.audio_play_loop:
-				cmd="/usr/bin/mplayer -nogui -noconsolecontrols -nolirc -nojoystick -really-quiet -slave -loop 0 -ao jack -input file='{}' '{}'".format(self.mplayer_ctrl_fifo_path, fpath)
+				cmd="/usr/bin/mplayer -nogui -noconsolecontrols -nolirc -nojoystick -really-quiet -slave -loop 0 -ao jack -input file=\"{}\" \"{}\"".format(self.mplayer_ctrl_fifo_path, fpath)
 			else:
-				cmd="/usr/bin/mplayer -nogui -noconsolecontrols -nolirc -nojoystick -really-quiet -slave -ao jack -input file='{}' '{}'".format(self.mplayer_ctrl_fifo_path, fpath)
+				cmd="/usr/bin/mplayer -nogui -noconsolecontrols -nolirc -nojoystick -really-quiet -slave -ao jack -input file=\"{}\" \"{}\"".format(self.mplayer_ctrl_fifo_path, fpath)
 
 			logging.info("COMMAND: %s" % cmd)
 
@@ -284,6 +284,14 @@ class zynthian_gui_audio_recorder(zynthian_gui_selector):
 			logging.error("ERROR STOPPING AUDIO PLAY: %s" % e)
 			self.zyngui.show_info("ERROR STOPPING AUDIO PLAY:\n %s" % e)
 			self.zyngui.hide_info_timer(5000)
+
+
+	def toggle_playing(self):
+		logging.info("TOGGLING AUDIO PLAY ...")
+		if self.get_status() in ("PLAY", "PLAY+REC"):
+			self.stop_playing()
+		else:
+			self.start_playing()
 
 
 	def show_playing_volume(self):
