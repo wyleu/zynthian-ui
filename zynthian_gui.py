@@ -45,6 +45,7 @@ import zynautoconnect
 from jackpeak import *
 from jackpeak.jackpeak import lib_jackpeak, lib_jackpeak_init
 from zyncoder import *
+from zyncoder_i2c_rgb import handle
 from zyncoder.zyncoder import lib_zyncoder, lib_zyncoder_init
 from zyngine import zynthian_zcmidi
 from zyngine import zynthian_midi_filter
@@ -652,6 +653,10 @@ class zynthian_gui:
 				if cc_num is not None:
 					lib_zyncoder.setup_zynswitch_midi(swi, int(midi_chan), int(cc_num))
 					logging.info("MIDI ZYNSWITCH {} => CH#{}, CC#{}".format(swi, midi_chan, cc_num))
+
+	# Check the i2c component for events
+	def zyncoder_i2c_rgb(self):
+
 
 
 	def zynswitches(self):
