@@ -45,7 +45,7 @@ import zynautoconnect
 from jackpeak import *
 from jackpeak.jackpeak import lib_jackpeak, lib_jackpeak_init
 from zyncoder import *
-from zyncoder_i2c_rgb import handle
+from zyncoder.zyncoder_i2c_rgb import I2c_RGB
 from zyncoder.zyncoder import lib_zyncoder, lib_zyncoder_init
 from zyngine import zynthian_zcmidi
 from zyngine import zynthian_midi_filter
@@ -173,6 +173,7 @@ class zynthian_gui:
 			self.zynmidi=zynthian_zcmidi()
 			#Init Switches
 			self.zynswitches_init()
+			self.zyncoder_i2c_rgb_init()
 		except Exception as e:
 			logging.error("ERROR initializing Controllers & MIDI-router: %s" % e)
 
@@ -654,10 +655,16 @@ class zynthian_gui:
 					lib_zyncoder.setup_zynswitch_midi(swi, int(midi_chan), int(cc_num))
 					logging.info("MIDI ZYNSWITCH {} => CH#{}, CC#{}".format(swi, midi_chan, cc_num))
 
+
+	def zyncoder_i2c_rgb_init(self):
+		logging.info("I2C RGB ENCODER SETUP...")
+		self.i2c_rgb = I2c_RGB().report_encoders()
+
+
 	# Check the i2c component for events
 	def zyncoder_i2c_rgb(self):
-
-
+		print('IN Handler!')
+		self.i2c_rgb.update_status(None)
 
 	def zynswitches(self):
 		if lib_zyncoder:
@@ -977,6 +984,7 @@ class zynthian_gui:
 		while not self.exit_flag:
 			self.zyncoder_read()
 			self.zynmidi_read()
+			self.zyncoder_i2c_rgb()
 			self.osc_receive()
 			sleep(0.04)
 			if self.zynread_wait_flag:

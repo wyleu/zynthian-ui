@@ -146,6 +146,12 @@ elif wiring_layout=="I2C_HWC":
 	zyncoder_pin_b=[0,0,0,0]
 	if not zynswitch_pin: zynswitch_pin=[1,2,3,4]
 	select_ctrl=3
+elif wiring_layout=="I2_RGB":
+	if not zyncoder_pin_a: zyncoder_pin_a=[1,2,3,4]
+	zyncoder_pin_b=[0,0,0,0]
+	if not zynswitch_pin: zynswitch_pin=[1,2,3,4]
+	select_ctrl=3
+
 
 # Desktop Development & Emulation
 elif wiring_layout=="EMULATOR":
@@ -218,6 +224,9 @@ if os.environ.get('DISPLAY_HEIGHT'):
 	ctrl_height=int((display_height-topbar_height)/2)
 else:
 	display_height=None
+	topbar_height=0
+	display_width=0
+
 
 # Controller Positions
 ctrl_pos=[
@@ -268,6 +277,7 @@ font_family=os.environ.get('ZYNTHIAN_UI_FONT_FAMILY',"Audiowide")
 #font_family="Abel" #=> Quite interesting, also "Strait"
 
 font_size=int(os.environ.get('ZYNTHIAN_UI_FONT_SIZE',None))
+font_topbar = (font_family, int(1.1 * font_size))
 
 #------------------------------------------------------------------------------
 # UI Cursor
