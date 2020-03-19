@@ -44,6 +44,7 @@ import zynconf
 import zynautoconnect
 from jackpeak import *
 from jackpeak.jackpeak import lib_jackpeak, lib_jackpeak_init
+from ledshow import *
 from ledshow.ledshow import lib_ledshow
 from zyncoder import *
 from zyncoder.zyncoder import lib_zyncoder, lib_zyncoder_init

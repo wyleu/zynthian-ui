@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 __all__ = [
-	"ledshow"
+	"ledshow",
+	"reactor"
 ]
 from ledshow.ledshow import *
