@@ -5,7 +5,7 @@ import logging
 from time import sleep
 import Source.i2cEncoderLibV2 as i2c
 
-from reactor import Reactor
+from encoder import Encoder
 
 try:
     logging.info("i2c_disp started cleanly...")
@@ -64,9 +64,7 @@ def main(reactor):
 
 if __name__ == '__main__':
     bus = smbus2.SMBus(1)
-    encoder = i2c.i2cEncoderLibV2(bus, 0x41)
-
-    reactor = Reactor(encoder)
+    reactor = Encoder(bus, 0x41)
 
     main(reactor)
     while True:

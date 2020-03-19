@@ -1,11 +1,12 @@
 """
-Collection of reactions to events.
+Collection of reactions to encoder events.
 """
+from Source import i2cEncoderLibV2
 
+class Encoder():
+    def __init__(self, bus, port):
 
-class Reactor():
-    def __init__(self, encoder):
-        self.encoder = encoder
+        self.encoder = i2cEncoderLibV2.i2cEncoderLibV2(bus, 0x41)
 
     def encoderChange(self):
         self.encoder.writeLEDG(100)
