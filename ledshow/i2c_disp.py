@@ -35,11 +35,12 @@ if __name__ == '__main__':
     encoder3.begin(encconfig)
     encoder4.begin(encconfig)
 
-
-    def EncoderChange():
-        encoder.writeLEDG(100)
-        print('Changed: %d' % (encoder.readCounter32()))
-        encoder.writeLEDG(0)
+    def encoder_change(encoder):
+        def EncoderChange():
+            encoder.writeLEDG(100)
+            print('Changed: %d' % (encoder.readCounter32()))
+            encoder.writeLEDG(0)
+        return EncoderChange()
 
 
     def Encoder_INT(self):
@@ -57,10 +58,19 @@ if __name__ == '__main__':
         encoder.writeGammaBLED(i2c.GAMMA_2)
 
     set_encoder(encoder)
+    set_encoder(encoder2)
+    set_encoder(encoder3)
+    set_encoder(encoder4)
 
-    encoder.onChange = EncoderChange  # Attach the event to the callback function#
+    encoder.onChange = encoder_change(encoder)  # Attach the event to the callback function#
+    encoder2.onChange = encoder_change(encoder2)  # Attach the event to the callback function#
+    encoder3.onChange = encoder_change(encoder3)  # Attach the event to the callback function#
+    encoder4.onChange = encoder_change(encoder4)  # Attach the event to the callback function#
 
     encoder.autoconfigInterrupt()
+    encoder2.autoconfigInterrupt()
+    encoder3.autoconfigInterrupt()
+    encoder4.autoconfigInterrupt()
 
     encoder2.writeLEDR(60)
     encoder3.writeLEDG(60)
@@ -72,7 +82,11 @@ if __name__ == '__main__':
     sleep(0.3)
     encoder.writeRGBCode(0x000064)
     sleep(0.3)
+
     encoder.writeRGBCode(0x00)
+    encoder2.writeRGBCode(0x00)
+    encoder3.writeRGBCode(0x00)
+    encoder4.writeRGBCode(0x00)
 
     print('Board ID code: 0x%X' % (encoder.readIDCode()))
     logging.info('Info Board ID code: 0x%X' % (encoder.readIDCode()))
@@ -81,6 +95,9 @@ if __name__ == '__main__':
     logging.error('Error Board Version: 0x%X' % (encoder.readVersion()))
 
     GPIO.add_event_detect(INT_pin, GPIO.FALLING, callback=Encoder_INT, bouncetime=10)
-
-    while True:
-        pass
+    try:
+        while True:
+            pass
+    except:
+        logging.error('Key out')
+        bus.close()
