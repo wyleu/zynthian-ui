@@ -47,16 +47,19 @@ class Encoders:
         GPIO.cleanup()
 
     def Encoder_INT(self, channel):
-        logging.error(channel)
-        print ('Encoder Interupt')
         for encoder in self.encoders:
             if encoder.updateStatus():
-                print('encoder event %s' % (encoder,))
+                print('encoder %s %s' % (encoder, encoder.stat))
 
 
 class Encoder(i2c.i2cEncoderLibV2):
-    def __init__(self, bus, add):
+    def __init__(self, bus, add, name=None):
         super().__init__(bus, add)
+        if name:
+            self.name = name
+        else:
+            self.name = str(add)
+
         encconfig = (
                 i2c.INT_DATA |
                 i2c.WRAP_ENABLE |
@@ -74,6 +77,8 @@ class Encoder(i2c.i2cEncoderLibV2):
         self.onMin = self.EncoderMin
         self.autoconfigInterrupt()
         self.blip()
+    def __str__(self):
+        return self.name
 
     def set_encoder(self):
         self.writeCounter(0)
@@ -96,35 +101,31 @@ class Encoder(i2c.i2cEncoderLibV2):
 
     def EncoderChange(self):
         self.writeLEDG(100)
-        print('Changed: %d' % (self.readCounter32()))
+        print('Encoder %s Changed: %d' % (self.name, self.readCounter32()))
         self.writeLEDG(0)
 
     def EncoderPush(self):
         self.writeLEDB(100)
-        print ('Encoder Pushed!')
+        print ('Encoder %s Pushed!'  % (self.name,))
         self.writeLEDB(0)
 
     def EncoderDoublePush(self):
         self.writeLEDB(100)
         self.writeLEDG(100)
-        print ('Encoder Double Push!')
+        print ('Encoder %s Double Push!' % (self.name,))
         self.writeLEDB(0)
         self.writeLEDG(0)
 
     def EncoderMax(self):
         self.writeLEDR(100)
-        print ('Encoder max!')
+        print ('Encoder %s max!' % (self.name,))
         self.writeLEDR(0)
 
     def EncoderMin(self):
         self.writeLEDR(100)
-        print ('Encoder min!')
+        print ('Encoder %s min!' % (self.name,))
         self.writeLEDR(0)
-
-
 
 
 if __name__ == '__main__':
     Encoders().run()
-
-
