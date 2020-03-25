@@ -1,9 +1,5 @@
 import smbus2
-from  queue import Queue
-
-
 import RPi.GPIO as GPIO
-import logging
 from time import sleep
 import Source.i2cEncoderLibV2 as i2c
 
@@ -14,13 +10,6 @@ ENCODERS = {
     0x44: "Encoder 4"
 }
 
-queue = Queue()
-
-try:
-    logging.info("i2c_disp started cleanly...")
-except Exception as e:
-    logging.error("ERROR initializing i2c_disp: %s" % e)
-
 class Encoders:
     def __init__(self):
         self.encoders = None
@@ -30,9 +19,10 @@ class Encoders:
 
         GPIO.add_event_detect(
             self.INT_pin,
-            GPIO.FALLING,
+            GPIO.BOTH,
             callback=self.Encoder_INT,
             bouncetime=10)
+
 
     def run(self):
         with smbus2.SMBus(1) as bus:
@@ -72,11 +62,13 @@ class Encoder(i2c.i2cEncoderLibV2):
         self.set_encoder()
         self.onChange = self.EncoderChange
         self.onButtonPush = self.EncoderPush
-        self.onButtonDoublePush = self.EncoderDoublePush
+        self.onButtonRelease = self.EncoderRelease
+        # self.onButtonDoublePush = self.EncoderDoublePush
         self.onMax = self.EncoderMax
         self.onMin = self.EncoderMin
         self.autoconfigInterrupt()
         self.blip()
+
     def __str__(self):
         return self.name
 
@@ -109,12 +101,17 @@ class Encoder(i2c.i2cEncoderLibV2):
         print ('Encoder %s Pushed!'  % (self.name,))
         self.writeLEDB(0)
 
-    def EncoderDoublePush(self):
-        self.writeLEDB(100)
+    def EncoderRelease(self):
         self.writeLEDG(100)
-        print ('Encoder %s Double Push!' % (self.name,))
-        self.writeLEDB(0)
+        print ('Encoder %s Released!'  % (self.name,))
         self.writeLEDG(0)
+
+    # def EncoderDoublePush(self):
+    #     self.writeLEDB(100)
+    #     self.writeLEDG(100)
+    #     print ('Encoder %s Double Push!' % (self.name,))
+    #     self.writeLEDB(0)
+    #     self.writeLEDG(0)
 
     def EncoderMax(self):
         self.writeLEDR(100)
