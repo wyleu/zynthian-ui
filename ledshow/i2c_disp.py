@@ -1,6 +1,7 @@
 import smbus2
 import RPi.GPIO as GPIO
-from time import sleep
+from time import sleep, time
+
 import Source.i2cEncoderLibV2 as i2c
 
 ENCODERS = {
@@ -45,6 +46,7 @@ class Encoders:
 class Encoder(i2c.i2cEncoderLibV2):
     def __init__(self, bus, add, name=None):
         super().__init__(bus, add)
+        self.time_pressed = None
         if name:
             self.name = name
         else:
@@ -91,6 +93,21 @@ class Encoder(i2c.i2cEncoderLibV2):
         sleep(0.2)
         self.clear()
 
+    def EncoderShort(self):
+        self.writeRGBCode(0x000064)
+        print('Encoder %s Short Push:' % (self.name,))
+        self.clear()
+
+    def EncoderBold(self):
+        self.writeRGBCode(0x006400)
+        print('Encoder %s Bold Push:' % (self.name,))
+        self.clear()
+
+    def EncoderLong(self):
+        self.writeRGBCode(0x640000)
+        print('Encoder %s Long Push:' % (self.name,))
+        self.clear()
+
     def EncoderChange(self):
         self.writeLEDG(100)
         print('Encoder %s Changed: %d' % (self.name, self.readCounter32()))
@@ -98,12 +115,27 @@ class Encoder(i2c.i2cEncoderLibV2):
 
     def EncoderPush(self):
         self.writeLEDB(100)
-        print ('Encoder %s Pushed!'  % (self.name,))
+        self.time_pressed = time()
+        print ('Encoder %s Pushed!' % (self.name,))
         self.writeLEDB(0)
 
     def EncoderRelease(self):
         self.writeLEDG(100)
-        print ('Encoder %s Released!'  % (self.name,))
+        self.time_pressed = time() - self.time_pressed
+        print('Encoder %s Released!' % (self.name,))
+        """
+            short click: less than 0.3 seconds
+            bold click: between 0.3 and 2 seconds
+            long click: more than 2 seconds
+        """
+        if self.time_pressed:
+            if self.time_pressed < 0.3:
+                self.EncoderShort()
+            elif self.time_pressed < 2:
+                self.EncoderBold()
+            else:
+                self.EncoderLong()
+
         self.writeLEDG(0)
 
     # def EncoderDoublePush(self):
