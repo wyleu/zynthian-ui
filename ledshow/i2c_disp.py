@@ -28,6 +28,8 @@ class Encoders:
     def run(self):
         with smbus2.SMBus(1) as bus:
             self.encoders = [Encoder(bus, add) for add in ENCODERS]
+            # Clear out empty encoders.
+            self.encoders = [encoder for encoder in self.encoders if encoder]
             for encoder in self.encoders:
                 encoder.blip()
             while True:
