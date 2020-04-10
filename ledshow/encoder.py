@@ -4,7 +4,7 @@ Collection of reactions to encoder events.
 import RPi.GPIO as GPIO
 import logging
 
-from Source import i2cEncoderLibV2 as i2c
+from i2cEncoderLibV2 import i2cEncoderLibV2 as i2c
 
 class Encoder(i2c.i2cEncoderLibV2):
     def __init__(self, bus, add):

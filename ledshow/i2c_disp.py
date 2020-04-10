@@ -2,7 +2,7 @@ import smbus2
 import RPi.GPIO as GPIO
 from time import sleep, time
 
-import Source.i2cEncoderLibV2 as i2c
+import i2cEncoderLibV2 as i2c
 
 ENCODERS = {
     0x41: "Encoder 1",
