@@ -24,16 +24,13 @@
 #********************************************************************
 import time
 import RPi.GPIO as GPIO
+import logging
 from colour import Color
 
 gpio_modes = {
     GPIO.BOARD: 'Pins on Board',
     GPIO.BCM: 'Pins on BCM'
 }
-
-GPIO.setmode(GPIO.BOARD)
-print(gpio_modes[GPIO.getmode()])
-
 gpio_pinmodes = {
     GPIO.IN: 'In',
     GPIO.OUT: 'Out',
@@ -44,14 +41,28 @@ gpio_pinmodes = {
     GPIO.UNKNOWN: 'Unknown'
 }
 
-
-R_PIN = 33
-G_PIN = 36
-B_PIN = 32
-
 FREQ = 50
 
+GPIO.setmode(GPIO.BOARD)
+print(gpio_modes[GPIO.getmode()])
 
+logging.info('GPIO: 0x%X %s' % (GPIO.getmode(),gpio_modes[GPIO.getmode()]))
+# logging.error('Board Version: 0x%X %s' % (GPIO.getmode(),gpio_modes[GPIO.getmode()]))
+
+ENCODERS = {
+	'LS': 'Load Snapshot',
+	'SELECT': 'Select',
+	'BACK': 'Back',
+	'CHANNEL': 'Channel'
+}
+
+ENCODER_LEDS = {
+	'LS': {'r': 12, 'g': 10, 'b':7},
+	'SELECT': {'r': 21, 'g': 18, 'b':15},
+	'BACK': {'r': 16, 'g': 19, 'b': 22},
+	'CHANNEL': {'r': 8, 'g': 11, 'b': 13},
+}
+EL_PIN = 1 #if the items turn into a list or tuple . . .
 
 lib_ledshow = None
 
@@ -69,22 +80,35 @@ class LedShow(object):
 	def __init__(self):
 		pass
 
+	def begin(self, config=None):
+		self.pins = []
+		for encoder in ENCODERS:
+			for pin in ENCODER_LEDS[encoder].items():
+				GPIO.setup(pin[EL_PIN], GPIO.OUT)
+				try:
+					self.pins.append(GPIO.PWM(pin[EL_PIN], FREQ))
+				except:
+					logging.error('Failed to setup pin as PWM')
+				self.pins[-1].start(0.5)
 
-	def begin(self, config):
-		self.b = GPIO.PWM(B_PIN, FREQ)  # channel=32 frequency=50Hz
-		self.r = GPIO.PWM(R_PIN, FREQ)
-		self.g = GPIO.PWM(B_PIN, FREQ)
-
-		self.b.start(0)
-		self.r.start(0)
-		self.g.start(0)
-
-	def cleanup_lib_ledshow(self):
-		self.b.stop()
-		self.r.stop()
-		self.g.stop()
+	def end(self):
+		for pin in self.pins:
+			pin.stop()
 		GPIO.cleanup()
 
 	def set_lib_ledshow(self, led, colours):
 		self.value = ''
 
+	def get_pins_status(self, pin=None):
+		"""
+		Display pi status
+		pin: Pin to Display if None all
+		"""
+		if pin:
+			pass
+
+if __name__ =='__main__':
+	ledshow = LedShow()
+	ledshow.begin()
+	ledshow.run_test()
+	ledshow.end()
