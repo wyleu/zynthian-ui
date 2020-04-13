@@ -42,12 +42,15 @@ gpio_pinmodes = {
 }
 
 FREQ = 50
+PHYSICAL_TEST=True
 
-GPIO.setmode(GPIO.BOARD)
-print(gpio_modes[GPIO.getmode()])
+logging.basicConfig(level=logging.DEBUG)
+logging.critical('CRITICAL')
+logging.error('ERROR')
+logging.warning('WARNING')
+logging.info('INFO')
+logging.debug('DEBUG')
 
-logging.info('GPIO: 0x%X %s' % (GPIO.getmode(),gpio_modes[GPIO.getmode()]))
-# logging.error('Board Version: 0x%X %s' % (GPIO.getmode(),gpio_modes[GPIO.getmode()]))
 
 ENCODERS = {
 	'LS': 'Load Snapshot',
@@ -57,11 +60,12 @@ ENCODERS = {
 }
 
 ENCODER_LEDS = {
-	'LS': {'r': 12, 'g': 10, 'b':7},
-	'SELECT': {'r': 21, 'g': 18, 'b':15},
-	'BACK': {'r': 16, 'g': 19, 'b': 22},
-	'CHANNEL': {'r': 8, 'g': 11, 'b': 13},
+	'LS': {'red': 12, 'green': 10, 'blue':7},
+	'SELECT': {'red': 21, 'green': 18, 'blue':15},
+	'BACK': {'red': 16, 'green': 19, 'blue': 22},
+	'CHANNEL': {'red': 8, 'green': 11, 'blue': 13},
 }
+EL_COLOUR = 0
 EL_PIN = 1 #if the items turn into a list or tuple . . .
 
 lib_ledshow = None
@@ -81,6 +85,8 @@ class LedShow(object):
 		pass
 
 	def begin(self, config=None):
+		GPIO.setmode(GPIO.BOARD)
+		logging.info('GPIO: 0x%X %s' % (GPIO.getmode(), gpio_modes[GPIO.getmode()]))
 		self.pins = []
 		for encoder in ENCODERS:
 			for pin in ENCODER_LEDS[encoder].items():
@@ -89,12 +95,47 @@ class LedShow(object):
 					self.pins.append(GPIO.PWM(pin[EL_PIN], FREQ))
 				except:
 					logging.error('Failed to setup pin as PWM')
-				self.pins[-1].start(0.5)
+
+				self.pins[-1].start(100)  # start the new instance at one
+				logging.info('{0} should be {1} on pin {2}'.format(encoder, *pin))
+				time.sleep(4)
+		self.dump()
+		self.clear()
+
+	def dump(self):
+		logging.info('Dumping PWM')
+		for pin in self.pins:
+			logging.info(dir(pin))
+
+
+
+	def clear(self):
+		logging.info('Clearing down LEDs')
+		for pin in self.pins:
+			dc = 1
+			pin.ChangeDutyCycle(dc)
+			time.sleep(0.3)
 
 	def end(self):
+		logging.info('Running PWM End...')
 		for pin in self.pins:
 			pin.stop()
 		GPIO.cleanup()
+
+	def run_test(self):
+		""" Do something demonstrative """
+		logging.info('Running LEDs tests')
+		try:
+			while 1:
+				for pin in self.pins:
+					for dc in range(0, 101, 5):
+						pin.ChangeDutyCycle(dc)
+						time.sleep(0.1)
+					for dc in range(100, -1, -5):
+						pin.ChangeDutyCycle(dc)
+						time.sleep(0.1)
+		except KeyboardInterrupt:
+			pass
 
 	def set_lib_ledshow(self, led, colours):
 		self.value = ''
@@ -110,5 +151,5 @@ class LedShow(object):
 if __name__ =='__main__':
 	ledshow = LedShow()
 	ledshow.begin()
-	ledshow.run_test()
+	# ledshow.run_test()
 	ledshow.end()
