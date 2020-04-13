@@ -98,23 +98,17 @@ class LedShow(object):
 
 				self.pins[-1].start(100)  # start the new instance at one
 				logging.info('{0} should be {1} on pin {2}'.format(encoder, *pin))
-				time.sleep(4)
-		self.dump()
-		self.clear()
+				time.sleep(0.3)
+		self.step_set(0)
+		self.step_set(100)
+		self.step_set(0)
 
-	def dump(self):
-		logging.info('Dumping PWM')
-		for pin in self.pins:
-			logging.info(dir(pin))
-
-
-
-	def clear(self):
+	def step_set(self, value):
 		logging.info('Clearing down LEDs')
 		for pin in self.pins:
-			dc = 1
-			pin.ChangeDutyCycle(dc)
-			time.sleep(0.3)
+			dc = 100
+			pin.ChangeDutyCycle(value)
+			time.sleep(1)
 
 	def end(self):
 		logging.info('Running PWM End...')
