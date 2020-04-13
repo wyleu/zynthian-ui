@@ -41,15 +41,63 @@ gpio_pinmodes = {
     GPIO.UNKNOWN: 'Unknown'
 }
 
+gpio_constants = {
+	'BCM': 11,
+	'BOARD': 10,
+	'BOTH': 33,
+	'FALLING': 32,
+	'HARD_PWM': 43,
+	'HIGH': 1,
+	'I2C': 42,
+	'IN': 1,
+	'LOW': 0,
+	'OUT': 0,
+	'PUD_DOWN': 21,
+	'PUD_OFF': 20,
+	'PUD_UP': 22,
+	# 'PWM':"""<class 'RPi.GPIO.PWM'>""",
+	'RISING': 31,
+	'RPI_INFO': {
+		'P1_REVISION': 3,
+		'REVISION': 'a02082',
+		'TYPE': 'Pi 3 Model B',
+		'MANUFACTURER': 'Sony',
+		'PROCESSOR': 'BCM2837',
+		'RAM': '1G'
+		},
+	'RPI_REVISION': 3,
+	'SERIAL': 40,
+	'SPI': 41,
+	'UNKNOWN': -1,
+	'VERSION': '0.7.0'
+}
+
+
+gpio_functions = (
+	'add_event_callback',
+	'add_event_detect',
+	'cleanup',
+	'event_detected',
+	'getmode',
+	'gpio_function',
+	'input',
+	'output',
+	'remove_event_detect',
+	'setmode',
+	'setup',
+	'setwarnings',
+	'wait_for_edge',
+)
+
 FREQ = 50
 PHYSICAL_TEST=True
 
-logging.basicConfig(level=logging.DEBUG)
-logging.critical('CRITICAL')
-logging.error('ERROR')
-logging.warning('WARNING')
-logging.info('INFO')
-logging.debug('DEBUG')
+# logging.basicConfig(level=logging.DEBUG)
+# logging.critical('CRITICAL')
+# logging.error('ERROR')
+# logging.warning('WARNING')
+# logging.info('INFO')
+# logging.debug('DEBUG')
 
 
 ENCODERS = {
@@ -80,9 +128,77 @@ def lib_ledshow_init():
 	return lib_ledshow
 
 
+class Board(object):
+
+	def dir_constants(self):
+		return {item: getattr(GPIO,item)
+				for item in dir(GPIO)
+				if item[0:2] != '__'
+				and item.isupper()
+				and item != 'PWM'
+				}
+
+	def dir_functions(self):
+		return [item
+				for item in dir(GPIO)
+				if item[0:2] != '__'
+				and item.islower()
+				]
+
+
+	def setmode(self, mode):
+		GPIO.setmode(mode)
+
+
+	def getmodes(self):
+		return gpio_modes.keys()
+
+	def getmode(self):
+		return GPIO.getmode()
+
+	def cleanup(self):
+		return GPIO.cleanup()
+
+	def setwarnings(self, warning):
+		GPIO.setwarnings(warning)
+
+
+
+
+
+class LED(object):
+	def __init__(self, pin, colour):
+		self.pin = pin
+		self.colour = colour
+
+
+class Encoder(object):
+	def __init__(self, name):
+		self.leds = None
+
+	def add_led(self, led):
+		try:
+			self.leds.append(led)
+		except AttributeError:
+			self.leds = [led,]
+
+
+class Display(object):
+	def __init__(self, name):
+		self.encoders = None
+	def add_encoder(self, encoder):
+		try:
+			self.encoders.append(encoder)
+		except AttributeError:
+			self.encoders = [encoder,]
+
+
+
+
+
 class LedShow(object):
 	def __init__(self):
-		pass
+		self.encoders = ENCODERS
 
 	def begin(self, config=None):
 		GPIO.setmode(GPIO.BOARD)
@@ -109,6 +225,7 @@ class LedShow(object):
 			dc = 100
 			pin.ChangeDutyCycle(value)
 			time.sleep(1)
+
 
 	def end(self):
 		logging.info('Running PWM End...')
@@ -141,6 +258,7 @@ class LedShow(object):
 		"""
 		if pin:
 			pass
+
 
 if __name__ =='__main__':
 	ledshow = LedShow()
