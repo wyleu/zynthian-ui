@@ -77,7 +77,8 @@ class zynthian_engine_puredata(zynthian_engine):
 		self.type = "Special"
 		self.name = "PureData"
 		self.nickname = "PD"
-		self.jackname = "pure_data_0"
+		#self.jackname = "pure_data_0"
+		self.jackname = "pure_data"
 
 		#self.options['midi_chan']=False
 
@@ -85,9 +86,9 @@ class zynthian_engine_puredata(zynthian_engine):
 		self.preset_config = None
 
 		if self.config_remote_display():
-			self.base_command="/usr/bin/pd -jack -rt -alsamidi -mididev 1 -open \"{}\"".format(self.startup_patch)
+			self.base_command="/usr/bin/pd -jack -jackname \"{}\" -rt -alsamidi -mididev 1 -open \"{}\"".format(self.jackname, self.startup_patch)
 		else:
-			self.base_command="/usr/bin/pd -nogui -jack -rt -alsamidi -mididev 1 -open \"{}\"".format(self.startup_patch)
+			self.base_command="/usr/bin/pd -nogui -jack  -jackname \"{}\" -rt -alsamidi -mididev 1 -open \"{}\"".format(self.jackname, self.startup_patch)
 
 		self.reset()
 
@@ -126,7 +127,7 @@ class zynthian_engine_puredata(zynthian_engine):
 		self.start()
 		self.refresh_all()
 		sleep(0.3)
-		self.zyngui.zynautoconnect(True)
+		self.zyngui.zynautoconnect()
 		layer.send_ctrl_midi_cc()
 		return True
 
@@ -216,7 +217,7 @@ class zynthian_engine_puredata(zynthian_engine):
 	@classmethod
 	def zynapi_get_banks(cls):
 		banks=[]
-		for b in cls.get_dirlist(cls.bank_dirs):
+		for b in cls.get_dirlist(cls.bank_dirs, False):
 			banks.append({
 				'text': b[2],
 				'name': b[4],

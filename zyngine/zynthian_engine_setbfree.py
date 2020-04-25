@@ -300,7 +300,7 @@ class zynthian_engine_setbfree(zynthian_engine):
 			logging.debug("STARTING SETBFREE!!")
 			self.generate_config_file(midi_chans)
 			self.start()
-			self.zyngui.zynautoconnect(True)
+			self.zyngui.zynautoconnect()
 
 			midi_prog = self.manuals_config[4][2]
 			if midi_prog and isinstance(midi_prog, int):
@@ -450,7 +450,7 @@ class zynthian_engine_setbfree(zynthian_engine):
 								del params['drawbars']
 
 							#Add program to list
-							pgm_list.append((i,[0,0,prg],title,params))
+							pgm_list.append([i,[0,0,prg],title,params])
 							i=i+1
 					except:
 						#print("Ignored line: %s" % line)

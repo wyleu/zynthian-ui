@@ -174,7 +174,6 @@ logging.debug("ZYNCODER A: %s" % zyncoder_pin_a)
 logging.debug("ZYNCODER B: %s" % zyncoder_pin_b)
 logging.debug("SWITCHES layout: %s" % zynswitch_pin)
 
-
 #------------------------------------------------------------------------------
 # Custom Switches Action Configuration
 #------------------------------------------------------------------------------
@@ -182,24 +181,66 @@ logging.debug("SWITCHES layout: %s" % zynswitch_pin)
 n_custom_switches = 4
 
 custom_switch_ui_actions = []
-custom_switch_midi_cc = []
+custom_switch_midi_events = []
 
 for i in range(0, n_custom_switches):
 	cuias = {}
-	cc_num = None
+	midi_event = None
 
 	root_varname = "ZYNTHIAN_WIRING_CUSTOM_SWITCH_{0:0>2}".format(i+1)
-	if os.environ.get(root_varname) == "UI_ACTION":
+	custom_type = os.environ.get(root_varname, "")
+
+	if custom_type == "UI_ACTION":
 		cuias['S'] = os.environ.get(root_varname + "__UI_SHORT")
 		cuias['B'] = os.environ.get(root_varname + "__UI_BOLD")
 		cuias['L'] = os.environ.get(root_varname + "__UI_LONG")
 
-	elif os.environ.get(root_varname) == "MIDI_CC":
-		cc_num = os.environ.get(root_varname + "__CC_NUM")
+	else:
+		evtype = None
+		if custom_type=="MIDI_CC":
+			evtype = 0xB
+		elif custom_type=="MIDI_NOTE":
+			evtype = 0x9
+		elif custom_type=="MIDI_PROG_CHANGE":
+			evtype = 0xC
+
+		if evtype:
+			chan = os.environ.get(root_varname + "__MIDI_CHAN")
+			try:
+				chan = int(chan) - 1
+				if chan<0 or chan>15:
+					chan = None
+			except:
+				chan = None
+
+			num = os.environ.get(root_varname + "__MIDI_NUM")
+			if num is None:
+				num = os.environ.get(root_varname + "__CC_NUM")
+			try:
+				num = int(num)
+				if num>=0 and num<=127:
+					midi_event = {
+						'type': evtype,
+						'chan': chan,
+						'num': num
+					}
+			except:
+				pass
 
 	custom_switch_ui_actions.append(cuias)
-	custom_switch_midi_cc.append(cc_num)
+	custom_switch_midi_events.append(midi_event)
 
+
+#------------------------------------------------------------------------------
+# Zynswitches events timing
+#------------------------------------------------------------------------------
+
+try:
+	zynswitch_bold_us = 1000 * int(os.environ.get('ZYNTHIAN_UI_SWITCH_BOLD_MS', 300))
+	zynswitch_long_us = 1000 * int(os.environ.get('ZYNTHIAN_UI_SWITCH_LONG_MS', 2000))
+except:
+	zynswitch_bold_us = 300000
+	zynswitch_long_us = 2000000
 
 #------------------------------------------------------------------------------
 # UI Geometric Parameters
@@ -240,7 +281,7 @@ color_hl=os.environ.get('ZYNTHIAN_UI_COLOR_HL',"#00b000")
 color_ml=os.environ.get('ZYNTHIAN_UI_COLOR_ML',"#f0f000")
 color_low_on=os.environ.get('ZYNTHIAN_UI_COLOR_LOW_ON',"#b00000")
 color_panel_bg=os.environ.get('ZYNTHIAN_UI_COLOR_PANEL_BG',"#3a424d")
-color_info=os.environ.get('ZYNTHIAN_UI_COLOR_INFO',"#0000e0")
+color_info=os.environ.get('ZYNTHIAN_UI_COLOR_INFO',"#8080ff")
 color_error=os.environ.get('ZYNTHIAN_UI_COLOR_ERROR',"#ff0000")
 
 # Color Scheme
@@ -280,7 +321,20 @@ force_enable_cursor=int(os.environ.get('ZYNTHIAN_UI_ENABLE_CURSOR',False))
 #------------------------------------------------------------------------------
 
 restore_last_state=int(os.environ.get('ZYNTHIAN_UI_RESTORE_LAST_STATE',False))
+snapshot_mixer_settings=int(os.environ.get('ZYNTHIAN_UI_SNAPSHOT_MIXER_SETTINGS',False))
 show_cpu_status=int(os.environ.get('ZYNTHIAN_UI_SHOW_CPU_STATUS',False))
+
+#------------------------------------------------------------------------------
+# Jackd configuration
+#------------------------------------------------------------------------------
+
+jackd_options = {}
+for item in os.environ.get('JACKD_OPTIONS',"").strip().split('-'):
+	try:
+		parts = item.split(' ', 1)
+		jackd_options[parts[0]] = parts[1].strip()
+	except:
+		pass
 
 #------------------------------------------------------------------------------
 # MIDI Configuration
@@ -288,7 +342,8 @@ show_cpu_status=int(os.environ.get('ZYNTHIAN_UI_SHOW_CPU_STATUS',False))
 
 def set_midi_config():
 	global preset_preload_noteon, midi_single_active_channel
-	global midi_network_enabled, midi_touchosc_enabled, midi_aubionotes_enabled
+	global midi_sys_enabled, midi_network_enabled, midi_rtpmidi_enabled 
+	global midi_touchosc_enabled, midi_aubionotes_enabled
 	global midi_prog_change_zs3, midi_fine_tuning, midi_filter_rules
 	global master_midi_channel, master_midi_change_type
 	global master_midi_program_change_up, master_midi_program_change_down
@@ -298,11 +353,13 @@ def set_midi_config():
 	global disabled_midi_in_ports, enabled_midi_out_ports, enabled_midi_fb_ports
 
 	# MIDI options
+	midi_sys_enabled=int(os.environ.get('ZYNTHIAN_MIDI_SYS_ENABLED',1))
 	midi_fine_tuning=int(os.environ.get('ZYNTHIAN_MIDI_FINE_TUNING',440))
 	midi_single_active_channel=int(os.environ.get('ZYNTHIAN_MIDI_SINGLE_ACTIVE_CHANNEL',0))
 	midi_prog_change_zs3=int(os.environ.get('ZYNTHIAN_MIDI_PROG_CHANGE_ZS3',1))
 	preset_preload_noteon=int(os.environ.get('ZYNTHIAN_MIDI_PRESET_PRELOAD_NOTEON',1))
 	midi_network_enabled=int(os.environ.get('ZYNTHIAN_MIDI_NETWORK_ENABLED',0))
+	midi_rtpmidi_enabled=int(os.environ.get('ZYNTHIAN_MIDI_RTPMIDI_ENABLED',0))
 	midi_touchosc_enabled=int(os.environ.get('ZYNTHIAN_MIDI_TOUCHOSC_ENABLED',0))
 	midi_aubionotes_enabled=int(os.environ.get('ZYNTHIAN_MIDI_AUBIONOTES_ENABLED',0))
 
@@ -322,8 +379,11 @@ def set_midi_config():
 	master_midi_channel = int(os.environ.get('ZYNTHIAN_MIDI_MASTER_CHANNEL',16))
 	if master_midi_channel>16:
 		master_midi_channel = 16
-	master_midi_channel = master_midi_channel-1
-	mmc_hex = hex(master_midi_channel)[2]
+	master_midi_channel -= 1
+	if master_midi_channel>=0: 
+		mmc_hex = hex(master_midi_channel)[2]
+	else:
+		mmc_hex = None
 
 	master_midi_change_type = os.environ.get('ZYNTHIAN_MIDI_MASTER_CHANGE_TYPE',"Roland")
 
@@ -333,25 +393,25 @@ def set_midi_config():
 	#master_midi_bank_change_ccnum = int(os.environ.get('ZYNTHIAN_MIDI_MASTER_BANK_CHANGE_CCNUM',0x00))
 
 	mmpcu = os.environ.get('ZYNTHIAN_MIDI_MASTER_PROGRAM_CHANGE_UP', "")
-	if len(mmpcu)==4:
+	if mmc_hex and len(mmpcu)==4:
 		master_midi_program_change_up = int('{:<06}'.format(mmpcu.replace('#',mmc_hex)),16)
 	else:
 		master_midi_program_change_up = None
 
 	mmpcd = os.environ.get('ZYNTHIAN_MIDI_MASTER_PROGRAM_CHANGE_DOWN', "")
-	if len(mmpcd)==4:
+	if mmc_hex and len(mmpcd)==4:
 		master_midi_program_change_down = int('{:<06}'.format(mmpcd.replace('#',mmc_hex)),16)
 	else:
 		master_midi_program_change_down = None
 
 	mmbcu = os.environ.get('ZYNTHIAN_MIDI_MASTER_BANK_CHANGE_UP', "")
-	if len(mmbcu)==6:
+	if mmc_hex and len(mmbcu)==6:
 		master_midi_bank_change_up = int('{:<06}'.format(mmbcu.replace('#',mmc_hex)),16)
 	else:
 		master_midi_bank_change_up = None
 
 	mmbcd = os.environ.get('ZYNTHIAN_MIDI_MASTER_BANK_CHANGE_DOWN', "")
-	if len(mmbcd)==6:
+	if mmc_hex and len(mmbcd)==6:
 		master_midi_bank_change_down = int('{:<06}'.format(mmbcd.replace('#',mmc_hex)),16)
 	else:
 		master_midi_bank_change_down = None
@@ -368,9 +428,9 @@ set_midi_config()
 #------------------------------------------------------------------------------
 # Player configuration
 #------------------------------------------------------------------------------
+
 midi_play_loop=int(os.environ.get('ZYNTHIAN_MIDI_PLAY_LOOP',0))
 audio_play_loop=int(os.environ.get('ZYNTHIAN_AUDIO_PLAY_LOOP',0))
-
 
 #------------------------------------------------------------------------------
 # X11 Related Stuff

@@ -58,16 +58,17 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 		['volume',7,96],
 		['pan',10,64],
 		['sustain',64,'off',['off','on']],
-		['portamento on/off',65,'off','off|on'],
-		['portamento time',5,64],
-		['sostenuto',66,64],
-		['poly on/off',127,'off','off|on']
+		['sostenuto',66,'off',['off','on']],
+		['legato on/off',68,'off',['off','on']],
+		['portamento on/off',65,'off',['off','on']],
+		['portamento time-coarse',5,0],
+		['portamento time-fine',37,0]
 	]
 
 	# Controller Screens
 	_ctrl_screens=[
-		['main',['volume','pan','portamento on/off','sustain']]
-		#['portamento',['volume','poly on/off','sostenuto','portamento time']]
+		['main',['volume','sostenuto','pan','sustain']],
+		['portamento',['legato on/off','portamento on/off','portamento time-coarse','portamento time-fine']]
 	]
 
 	# ---------------------------------------------------------------------------
@@ -218,7 +219,8 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 	# ---------------------------------------------------------------------------
 
 	def add_layer(self, layer):
-		super().add_layer(layer)
+		self.layers.append(layer)
+		layer.jackname = None
 		layer.ls_chan_info=None
 		self.ls_set_channel(layer)
 		self.set_midi_chan(layer)
@@ -228,6 +230,7 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 	def del_layer(self, layer):
 		super().del_layer(layer)
 		self.ls_unset_channel(layer)
+
 
 	# ---------------------------------------------------------------------------
 	# MIDI Channel Management
@@ -279,7 +282,7 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 						filename = filename[len(preset_dpath)+1:]
 						title=filename.replace('_', ' ')
 						engine=filext[1:].lower()
-						preset_list.append((f,i,title,engine,"{}.{}".format(filename,filext)))
+						preset_list.append([f,i,title,engine,"{}.{}".format(filename,filext)])
 						i=i+1
 		return preset_list
 
@@ -389,6 +392,7 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 					layer.ls_chan_info['audio_output']=i
 
 					layer.jackname = "{}:CH{}".format(self.jackname, i)
+					self.zyngui.zynautoconnect_audio()
 
 				except zyngine_lscp_error as err:
 					logging.error(err)
@@ -450,7 +454,7 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 			('GIG', zynthian_engine.my_data_dir + "/soundfonts/gig")
 		]
 		banks=[]
-		for b in cls.get_dirlist(cls.bank_dirs):
+		for b in cls.get_dirlist(cls.bank_dirs, False):
 			banks.append({
 				'text': b[2],
 				'name': b[4],
@@ -478,7 +482,15 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 
 	@classmethod
 	def zynapi_new_bank(cls, bank_name):
-		os.mkdir(zynthian_engine.my_data_dir + "/soundfonts/sfz/" + bank_name)
+		if bank_name.lower().startswith("gig/"):
+			bank_type = "gig"
+			bank_name = bank_name[4:]
+		elif bank_name.lower().startswith("sfz/"):
+			bank_type = "sfz"
+			bank_name = bank_name[4:]
+		else:
+			bank_type = "sfz"
+		os.mkdir(zynthian_engine.my_data_dir + "/soundfonts/{}/{}".format(bank_type, bank_name))
 
 
 	@classmethod
@@ -526,7 +538,13 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 			# Locate sfz files and move all them to first level directory
 			try:
 				sfz_files = check_output("find \"{}\" -type f -iname *.sfz".format(dpath), shell=True).decode("utf-8").split("\n")
-				head, tail = os.path.split(sfz_files[0])
+				# Find the "shallower" SFZ file 
+				shallower_sfz_file = sfz_files[0]
+				for f in sfz_files:
+					if len(f)<len(shallower_sfz_file):
+						shallower_sfz_file = f
+				head, tail = os.path.split(shallower_sfz_file)
+				# Move SFZ stuff to the top level
 				if head!=dpath:
 					for f in glob.glob(head + "/*"):
 						shutil.move(f, dpath)
@@ -535,10 +553,18 @@ class zynthian_engine_linuxsampler(zynthian_engine):
 				raise Exception("Directory doesn't contain any SFZ file")
 
 			# Move directory to destiny bank
-			shutil.move(dpath, bank_path)
+			if "/sfz/" in bank_path:
+				shutil.move(dpath, bank_path)
+			else:
+				raise Exception("Destiny is not a SFZ bank!")
 
 		elif ext.lower()=='.gig':
-			shutil.move(dpath, bank_path)
+
+			# Move directory to destiny bank
+			if "/gig/" in bank_path:
+				shutil.move(dpath, bank_path)
+			else:
+				raise Exception("Destiny is not a GIG bank!")
 
 		else:
 			raise Exception("File doesn't look like a SFZ or GIG soundfont")

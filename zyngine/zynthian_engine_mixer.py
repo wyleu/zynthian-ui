@@ -64,7 +64,7 @@ class zynthian_engine_mixer(zynthian_engine):
 		super().__init__(zyngui)
 
 		self.type = "Mixer"
-		self.name = "MIXER"
+		self.name = "ALSA Mixer"
 		self.nickname = "MX"
 
 		self.audio_out = []
@@ -131,10 +131,15 @@ class zynthian_engine_mixer(zynthian_engine):
 	# Controllers Managament
 	#----------------------------------------------------------------------------
 
-	def get_controllers_dict(self, layer):
+	def get_controllers_dict(self, layer, ctrl_list=None):
 		zctrls = OrderedDict()
 
-		logging.debug("MIXER CTRL LIST: {}".format(self.ctrl_list))
+		if ctrl_list=="*":
+			ctrl_list = None
+		elif ctrl_list is None:
+			ctrl_list = self.ctrl_list
+
+		logging.debug("MIXER CTRL LIST: {}".format(ctrl_list))
 
 		self.stop_sender_poll()
 
@@ -177,7 +182,7 @@ class zynthian_engine_mixer(zynthian_engine):
 						ctrl_caps = value.split(' ')
 						if 'enum' in ctrl_caps:
 							ctrl_type = "Selector"
-						elif 'pvolume' in ctrl_caps:
+						elif 'volume' in ctrl_caps or 'pvolume' in ctrl_caps:
 							ctrl_type = "Playback"
 						elif 'cvolume' in ctrl_caps:
 							ctrl_type = "Capture"
@@ -222,7 +227,7 @@ class zynthian_engine_mixer(zynthian_engine):
 								if ctrl_type=="VToggle":
 									ctrl_item0 = 'on' if (ctrl_value>0) else 'off'
 
-				if ctrl_symbol and ctrl_type and (not self.ctrl_list or ctrl_name in self.ctrl_list):
+				if ctrl_symbol and ctrl_type and (not ctrl_list or ctrl_name in ctrl_list):
 					if ctrl_type in ("Selector", "Toggle", "VToggle") and len(ctrl_items)>1:
 						#logging.debug("ADDING ZCTRL SELECTOR: {} => {}".format(ctrl_symbol, ctrl_item0))
 						
@@ -256,9 +261,9 @@ class zynthian_engine_mixer(zynthian_engine):
 			logging.error(err)
 
 		# Sort zctrls to match the configured mixer control list
-		if self.ctrl_list and len(self.ctrl_list)>0:
+		if ctrl_list and len(ctrl_list)>0:
 			sorted_zctrls = OrderedDict()
-			for ctrl_name in self.ctrl_list:
+			for ctrl_name in ctrl_list:
 				ctrl_symbol = ctrl_name.replace(' ', '_')
 				try:
 					sorted_zctrls[ctrl_symbol] = zctrls[ctrl_symbol]
@@ -292,6 +297,7 @@ class zynthian_engine_mixer(zynthian_engine):
 
 			logging.debug(amixer_command)
 			check_output(shlex.split(amixer_command))
+			sleep(0.05)
 
 		except Exception as err:
 			logging.error(err)
@@ -369,15 +375,22 @@ class zynthian_engine_mixer(zynthian_engine):
 	#----------------------------------------------------------------------------
 
 	def midi_control_change(self, chan, ccnum, val):
-		try:
-			self.learned_cc[chan][ccnum].midi_control_change(val)
-		except:
-			pass
+		if self.zyngui.is_single_active_channel():
+			for ch in range(0,16):
+				try:
+					self.learned_cc[ch][ccnum].midi_control_change(val)
+				except:
+					pass
+		else:
+			try:
+				self.learned_cc[chan][ccnum].midi_control_change(val)
+			except:
+				pass
+
 
 	# ---------------------------------------------------------------------------
 	# Layer "Path" String
 	# ---------------------------------------------------------------------------
-
 
 	def get_path(self, layer):
 		return self.name
@@ -421,8 +434,8 @@ class zynthian_engine_mixer(zynthian_engine):
 
 
 	@classmethod
-	def zynapi_get_controllers(cls):
-		return cls.zynapi_instance.get_controllers_dict(None)
+	def zynapi_get_controllers(cls, ctrl_list="*"):
+		return cls.zynapi_instance.get_controllers_dict(None, ctrl_list)
 
 
 #******************************************************************************

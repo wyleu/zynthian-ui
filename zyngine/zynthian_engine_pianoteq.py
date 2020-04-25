@@ -25,10 +25,11 @@
 
 import os
 import re
-import logging
+import copy
 import time
 import shutil
 import struct
+import logging
 import subprocess
 from collections import defaultdict
 from os.path import isfile,isdir,join
@@ -315,10 +316,9 @@ class zynthian_engine_pianoteq(zynthian_engine):
 	_ctrls=[
 		['volume',7,96],
 		['dynamic',85,64],
-		['mute on/off',19,'off','off|on'],
+		['mute',19,'off','off|on'],
 		['sustain',64,'off',[['off','1/4','1/2','3/4','full'],[0,25,51,76,102]]],
-		#['sustain on/off',64,'off','off|on'],
-		#['sustain',64,0],
+		['sostenuto',66,'off',[['off','1/4','1/2','3/4','full'],[0,25,51,76,102]]],
 		#['rev on/off',30,'off','off|on'],
 		#['rev duration',31,0],
 		#['rev mix',32,0],
@@ -329,7 +329,7 @@ class zynthian_engine_pianoteq(zynthian_engine):
 	]
 
 	_ctrl_screens=[
-		['main',['volume','sustain','dynamic','mute on/off']]
+		['main',['volume','sostenuto','dynamic','sustain']]
 		#['reverb1',['volume','rev on/off','rev duration','rev mix']],
 		#['reverb2',['volume','rev room','rev p/d','rev e/r']],
 		#['reverb3',['volume','rev tone']]
@@ -597,7 +597,7 @@ class zynthian_engine_pianoteq(zynthian_engine):
 		bank_name = bank[0]
 		if bank_name in self.presets:
 			logging.info("Getting Preset List for %s [%s]" % (self.name,bank_name))
-			res = self.presets[bank_name]
+			res = copy.deepcopy(self.presets[bank_name])
 		else:
 			logging.error("Can't get Preset List for %s [%s]" % (self.name,bank_name))
 			res = []
@@ -618,7 +618,7 @@ class zynthian_engine_pianoteq(zynthian_engine):
 			self.command += " --preset \"{}\"".format(preset[0])
 			self.stop()
 			self.start()
-			self.zyngui.zynautoconnect(True)
+			self.zyngui.zynautoconnect()
 
 		layer.send_ctrl_midi_cc()
 		return True
@@ -655,7 +655,11 @@ class zynthian_engine_pianoteq(zynthian_engine):
 					try:
 						#logging.debug("Generating Pianoteq MIDI-Mapping for {}".format(prs[0]))
 						midi_event_str = bytes("Program Change " + str(len(data)+1),"utf8")
-						action_str = bytes("{LoadPreset|28||" + prs[0] + "|0}","utf8")
+						parts = prs[0].split('/')
+						if len(parts)>1:
+							action_str = bytes("{{LoadPreset|28|{}|{}|0}}".format(parts[0],parts[1]),"utf8")
+						else:
+							action_str = bytes("{{LoadPreset|28||{}|0}}".format(prs[0]),"utf8")
 						row = b'\x01\x00\x00\x00'
 						row += struct.pack("<I",len(midi_event_str)) + midi_event_str
 						row += struct.pack("<I",len(action_str)) + action_str

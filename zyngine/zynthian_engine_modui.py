@@ -89,7 +89,7 @@ class zynthian_engine_modui(zynthian_engine):
 		self.graph = {}
 		self.plugin_info = OrderedDict()
 		self.plugin_zctrls = OrderedDict()
-		self.pedelpresets = OrderedDict()
+		self.pedal_presets = OrderedDict()
 
 
 	def start(self):
@@ -164,7 +164,7 @@ class zynthian_engine_modui(zynthian_engine):
 	#----------------------------------------------------------------------------
 
 	def get_preset_list(self, bank):
-		self.pedelpresets.clear()
+		self.pedal_presets.clear()
 
 		# Get Pedalboard Presets ...
 		presets = self.api_get_request('/pedalpreset/list')
@@ -176,11 +176,11 @@ class zynthian_engine_modui(zynthian_engine):
 			for pid in sorted(presets):
 				title = presets[pid]
 				logging.debug("Add pedalboard preset " + title)
-				preset_entry = (pid, [0,0,0], title, '')
-				self.pedelpresets[pid] = preset_entry
+				preset_entry = [pid, [0,0,0], title, '']
+				self.pedal_presets[pid] = preset_entry
 
-			preset_list = list(self.pedelpresets.values())
-			preset_list.append((None,[0,0,0],"-----------------------------", ''))
+			preset_list = list(self.pedal_presets.values())
+			preset_list.append([None,[0,0,0],"-----------------------------", ''])
 
 		else:
 			preset_list = list()
@@ -192,7 +192,7 @@ class zynthian_engine_modui(zynthian_engine):
 				title = self.plugin_info[pgraph]['name'] + '/' + prs['label']
 				logging.debug("Add effect preset " + title)
 				preset_dict[prs['uri']] = len(preset_list)
-				preset_list.append((prs['uri'], [0,0,0], title, pgraph))
+				preset_list.append([prs['uri'], [0,0,0], title, pgraph])
 				self.plugin_info[pgraph]['presets_dict'] = preset_dict
 
 		return preset_list
@@ -232,6 +232,18 @@ class zynthian_engine_modui(zynthian_engine):
 				return False
 		except:
 			return False
+
+
+	def get_preset_favs(self, layer):
+		if self.preset_favs is None:
+			self.load_preset_favs()
+
+		result = OrderedDict()
+		for k,v in self.preset_favs.items():
+			if v[1][0] in [p[0] for p in layer.preset_list]:
+				result[k] = v
+
+		return result
 
 	#----------------------------------------------------------------------------
 	# Controllers Managament
@@ -676,15 +688,17 @@ class zynthian_engine_modui(zynthian_engine):
 			i=self.plugin_info[pgraph]['presets_dict'][uri]
 			self.layers[0].set_preset(i, False)
 			self.zyngui.screens['control'].set_select_path()
+
 		except Exception as e:
 			logging.error("Preset Not Found: {}/{} => {}".format(pgraph, uri, e))
+
 		self.ws_preset_loaded = True
 
 
 	def pedal_preset_cb(self, preset):
 		try:
-			preset_entry = self.pedelpresets[preset]
-			preset_entries = list(self.pedelpresets.values())
+			preset_entry = self.pedal_presets[preset]
+			preset_entries = list(self.pedal_presets.values())
 			i = preset_entries.index(preset_entry)
 			self.layers[0].set_preset(i, False)
 			self.zyngui.screens['control'].set_select_path()

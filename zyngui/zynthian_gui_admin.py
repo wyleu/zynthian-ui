@@ -57,11 +57,6 @@ class zynthian_gui_admin(zynthian_gui_selector):
 	def fill_list(self):
 		self.list_data=[]
 
-		self.list_data.append((self.audio_recorder,0,"Audio Recorder"))
-		self.list_data.append((self.midi_recorder,0,"MIDI Recorder"))
-
-		self.list_data.append((None,0,"-----------------------------"))
-
 		if zynthian_gui_config.midi_single_active_channel:
 			self.list_data.append((self.toggle_single_channel,0,"[x] Single Channel Mode"))
 		else:
@@ -77,10 +72,25 @@ class zynthian_gui_admin(zynthian_gui_selector):
 		else:
 			self.list_data.append((self.toggle_preset_preload_noteon,0,"[  ] Preset Preload"))
 
-		if zynconf.is_service_active("qmidinet"):
-			self.list_data.append((self.stop_qmidinet,0,"[x] QmidiNet (MIDI over IP)"))
+		if zynthian_gui_config.snapshot_mixer_settings:
+			self.list_data.append((self.toggle_snapshot_mixer_settings,0,"[x] Mixer Settings on Snapshots"))
 		else:
-			self.list_data.append((self.start_qmidinet,0,"[  ] QmidiNet (MIDI over IP)"))
+			self.list_data.append((self.toggle_snapshot_mixer_settings,0,"[  ] Mixer Settings on Snapshots"))
+
+		if zynthian_gui_config.midi_sys_enabled:
+			self.list_data.append((self.toggle_midi_sys,0,"[x] MIDI System Messages"))
+		else:
+			self.list_data.append((self.toggle_midi_sys,0,"[  ] MIDI System Messages"))
+
+		if zynconf.is_service_active("jackrtpmidid"):
+			self.list_data.append((self.stop_rtpmidi,0,"[x] RTP-MIDI"))
+		else:
+			self.list_data.append((self.start_rtpmidi,0,"[  ] RTP-MIDI"))
+
+		if zynconf.is_service_active("qmidinet"):
+			self.list_data.append((self.stop_qmidinet,0,"[x] QmidiNet (IP Multicast)"))
+		else:
+			self.list_data.append((self.start_qmidinet,0,"[  ] QmidiNet (IP Multicast)"))
 
 		if zynconf.is_service_active("touchosc2midi"):
 			self.list_data.append((self.stop_touchosc2midi,0,"[x] TouchOSC MIDI Bridge"))
@@ -229,22 +239,40 @@ class zynthian_gui_admin(zynthian_gui_selector):
 				self.zyngui.all_sounds_off()
 
 #------------------------------------------------------------------------------
-# AUDIO/MIDI RECORDER/PLAYER
-#------------------------------------------------------------------------------
-
-	def audio_recorder(self):
-		logging.info("Audio Recorder")
-		self.zyngui.show_modal("audio_recorder")
-
-
-	def midi_recorder(self):
-		logging.info("MIDI Recorder")
-		self.zyngui.show_modal("midi_recorder")
-
-
-#------------------------------------------------------------------------------
 # MIDI OPTIONS
 #------------------------------------------------------------------------------
+
+	def toggle_snapshot_mixer_settings(self):
+		if zynthian_gui_config.snapshot_mixer_settings:
+			logging.info("Mixer Settings on Snapshots OFF")
+			zynthian_gui_config.snapshot_mixer_settings=False
+		else:
+			logging.info("Mixer Settings on Snapshots ON")
+			zynthian_gui_config.snapshot_mixer_settings=True
+
+		# Update Config
+		zynconf.save_config({ 
+			"ZYNTHIAN_UI_SNAPSHOT_MIXER_SETTINGS": str(int(zynthian_gui_config.snapshot_mixer_settings))
+		})
+
+		self.fill_list()
+
+
+	def toggle_midi_sys(self):
+		if zynthian_gui_config.midi_sys_enabled:
+			logging.info("MIDI System Messages OFF")
+			zynthian_gui_config.midi_sys_enabled=False
+		else:
+			logging.info("MIDI System Messages ON")
+			zynthian_gui_config.midi_sys_enabled=True
+
+		# Update MIDI profile
+		zynconf.update_midi_profile({ 
+			"ZYNTHIAN_MIDI_SYS_ENABLED": str(int(zynthian_gui_config.midi_sys_enabled))
+		})
+
+		self.fill_list()
+
 
 	def toggle_single_channel(self):
 		if zynthian_gui_config.midi_single_active_channel:
@@ -309,7 +337,7 @@ class zynthian_gui_admin(zynthian_gui_selector):
 				})
 			# Call autoconnect after a little time
 			sleep(0.5)
-			self.zyngui.zynautoconnect_midi(True)
+			self.zyngui.zynautoconnect_midi()
 
 		except Exception as e:
 			logging.error(e)
@@ -342,7 +370,53 @@ class zynthian_gui_admin(zynthian_gui_selector):
 		else:
 			self.stop_qmidinet(False)
 
-			
+
+	def start_rtpmidi(self, save_config=True):
+		logging.info("STARTING RTP-MIDI")
+
+		try:
+			check_output("systemctl start jackrtpmidid", shell=True)
+			zynthian_gui_config.midi_rtpmidi_enabled = 1
+			# Update MIDI profile
+			if save_config:
+				zynconf.update_midi_profile({ 
+					"ZYNTHIAN_MIDI_RTPMIDI_ENABLED": str(zynthian_gui_config.midi_rtpmidi_enabled)
+				})
+			# Call autoconnect after a little time
+			sleep(0.5)
+			self.zyngui.zynautoconnect_midi()
+
+		except Exception as e:
+			logging.error(e)
+
+		self.fill_list()
+
+
+	def stop_rtpmidi(self, save_config=True):
+		logging.info("STOPPING RTP-MIDI")
+
+		try:
+			check_output("systemctl stop jackrtpmidid", shell=True)
+			zynthian_gui_config.midi_rtpmidi_enabled = 0
+			# Update MIDI profile
+			if save_config:
+				zynconf.update_midi_profile({ 
+					"ZYNTHIAN_MIDI_RTPMIDI_ENABLED": str(zynthian_gui_config.midi_rtpmidi_enabled)
+				})
+
+		except Exception as e:
+			logging.error(e)
+
+		self.fill_list()
+
+
+	#Start/Stop RTP-MIDI depending on configuration
+	def default_rtpmidi(self):
+		if zynthian_gui_config.midi_rtpmidi_enabled:
+			self.start_rtpmidi(False)
+		else:
+			self.stop_rtpmidi(False)
+
 
 	def start_touchosc2midi(self, save_config=True):
 		logging.info("STARTING touchosc2midi")
@@ -356,7 +430,7 @@ class zynthian_gui_admin(zynthian_gui_selector):
 				})
 			# Call autoconnect after a little time
 			sleep(0.5)
-			self.zyngui.zynautoconnect_midi(True)
+			self.zyngui.zynautoconnect_midi()
 
 		except Exception as e:
 			logging.error(e)
@@ -401,7 +475,7 @@ class zynthian_gui_admin(zynthian_gui_selector):
 				})
 			# Call autoconnect after a little time
 			sleep(0.5)
-			self.zyngui.zynautoconnect(True)
+			self.zyngui.zynautoconnect()
 
 		except Exception as e:
 			logging.error(e)

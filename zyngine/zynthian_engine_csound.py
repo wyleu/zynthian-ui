@@ -126,7 +126,7 @@ class zynthian_engine_csound(zynthian_engine):
 		self.start()
 		self.refresh_all()
 		sleep(0.3)
-		self.zyngui.zynautoconnect(True)
+		self.zyngui.zynautoconnect()
 		layer.send_ctrl_midi_cc()
 		return True
 
@@ -241,7 +241,7 @@ class zynthian_engine_csound(zynthian_engine):
 	@classmethod
 	def zynapi_get_banks(cls):
 		banks=[]
-		for b in cls.get_dirlist(cls.bank_dirs):
+		for b in cls.get_dirlist(cls.bank_dirs, False):
 			banks.append({
 				'text': b[2],
 				'name': b[4],

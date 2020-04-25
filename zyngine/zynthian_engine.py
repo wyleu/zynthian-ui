@@ -25,6 +25,7 @@
 #import sys
 import os
 import copy
+import json
 import liblo
 import logging
 import pexpect
@@ -146,21 +147,12 @@ class zynthian_engine(zynthian_basic_engine):
 		['volume',7,96],
 		['modulation',1,0],
 		['pan',10,64],
-		['expression',11,127],
-		['sustain',64,'off',['off','on']],
-		['resonance',71,64],
-		['cutoff',74,64],
-		['reverb',91,64],
-		['chorus',93,2],
-		['portamento on/off',65,'off','off|on'],
-		['portamento time',5,64]
+		['sustain',64,'off',['off','on']]
 	]
 
 	# Controller Screens
 	_ctrl_screens=[
-		#['main',['volume','modulation','cutoff','resonance']],
-		['main',['volume','expression','pan','sustain']],
-		['effects',['volume','modulation','reverb','chorus']]
+		['main',['volume','modulation','pan','sustain']]
 	]
 
 	# ---------------------------------------------------------------------------
@@ -195,6 +187,9 @@ class zynthian_engine(zynthian_basic_engine):
 		self.osc_server = None
 		self.osc_server_port = None
 		self.osc_server_url = None
+
+		self.preset_favs = None
+		self.preset_favs_fpath = None
 
 
 	def __del__(self):
@@ -317,7 +312,7 @@ class zynthian_engine(zynthian_basic_engine):
 						title=str.replace(f[:-xlen], '_', ' ')
 						if dn!='_': title=dn+'/'+title
 						#print("filelist => "+title)
-						res.append((join(dp,f),i,title,dn,f))
+						res.append([join(dp,f),i,title,dn,f])
 						i=i+1
 			except:
 				pass
@@ -326,7 +321,7 @@ class zynthian_engine(zynthian_basic_engine):
 
 
 	@staticmethod
-	def get_dirlist(dpath):
+	def get_dirlist(dpath, exclude_empty=True):
 		res=[]
 		if isinstance(dpath, str): dpath=[('_', dpath)]
 		i=0
@@ -335,14 +330,14 @@ class zynthian_engine(zynthian_basic_engine):
 			dn=dpd[0]
 			try:
 				for f in sorted(os.listdir(dp)):
-					if next(os.scandir(join(dp,f)), None) is None:
+					if exclude_empty and next(os.scandir(join(dp,f)), None) is None:
 						continue
 					if not f.startswith('.') and isdir(join(dp,f)):
 						title,ext=os.path.splitext(f)
 						title=str.replace(title, '_', ' ')
 						if dn!='_': title=dn+'/'+title
 						#print("dirlist => "+title)
-						res.append((join(dp,f),i,title,dn,f))
+						res.append([join(dp,f),i,title,dn,f])
 						i=i+1
 			except:
 				pass
@@ -358,7 +353,7 @@ class zynthian_engine(zynthian_basic_engine):
 		lines=output.decode('utf8').split('\n')
 		for f in lines:
 			title=str.replace(f, '_', ' ')
-			res.append((f,i,title))
+			res.append([f,i,title])
 			i=i+1
 		return res
 
@@ -438,6 +433,62 @@ class zynthian_engine(zynthian_basic_engine):
 				return False
 		except:
 			return False
+
+
+	# ---------------------------------------------------------------------------
+	# Preset Favorites Management
+	# ---------------------------------------------------------------------------
+
+	def toggle_preset_fav(self, layer, preset):
+		if self.preset_favs is None:
+			self.load_preset_favs()
+
+		try:
+			del self.preset_favs[preset[0]]
+			fav_status = False
+		except:
+			self.preset_favs[preset[0]]=[layer.bank_info, preset]
+			fav_status = True
+
+		try:
+			with open(self.preset_favs_fpath, 'w') as f:
+				json.dump(self.preset_favs, f)
+		except Exception as e:
+			logging.error("Can't save preset favorites! => {}".format(e))
+
+		return fav_status
+
+
+	def get_preset_favs(self, layer):
+		if self.preset_favs is None:
+			self.load_preset_favs()
+
+		return self.preset_favs
+
+
+	def is_preset_fav(self, preset):
+		if self.preset_favs is None:
+			self.load_preset_favs()
+
+		if preset[0] in [item[1][0] for item in self.preset_favs.values()]:
+			return True
+		else:
+			return False
+
+
+	def load_preset_favs(self):
+		if self.nickname:
+			fname = self.nickname.replace("/","_")
+			self.preset_favs_fpath = self.my_data_dir + "/preset-favorites/" + fname + ".json"
+
+			try:
+				with open(self.preset_favs_fpath) as f:
+					self.preset_favs = json.load(f, object_pairs_hook=OrderedDict)
+			except:
+				self.preset_favs = OrderedDict()
+
+		else:
+			logging.warning("Can't load preset favorites until the engine have a nickname!")
 
 
 	# ---------------------------------------------------------------------------

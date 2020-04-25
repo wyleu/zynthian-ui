@@ -41,17 +41,35 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 	# Controllers & Screens
 	# ---------------------------------------------------------------------------
 
+	# Standard MIDI Controllers
+	_ctrls=[
+		['volume',7,96],
+		['modulation',1,0],
+		['pan',10,64],
+		['expression',11,127],
+		['sustain',64,'off',['off','on']],
+		['reverb',91,64],
+		['chorus',93,2],
+		['portamento on/off',65,'off',['off','on']],
+		['portamento time-coarse',5,0],
+		['portamento time-fine',37,0],
+		['portamento control',84,0],
+		['sostenuto',66,'off',['off','on']],
+		['legato on/off',68,'off',['off','on']]
+	]
+
 	# Controller Screens
 	_ctrl_screens=[
-		['main',['volume','expression','pan','sustain']],
-		['effects',['volume','modulation','reverb','chorus']]
+		['main',['volume','sostenuto','pan','sustain']],
+		['effects',['expression','modulation','reverb','chorus']],
+		['portamento',['legato on/off','portamento on/off','portamento time-coarse','portamento time-fine']],
 	]
 
 	# ---------------------------------------------------------------------------
 	# Config variables
 	# ---------------------------------------------------------------------------
 
-	fs_options = "-o synth.midi-bank-select=mma -o synth.cpu-cores=3 -o synth.polyphony=64"
+	fs_options = "-o synth.midi-bank-select=mma -o synth.cpu-cores=3 -o synth.polyphony=64 -o midi.jack.id='fluidsynth' -o audio.jack.id='fluidsynth' -o audio.jack.multi='yes' -o synth.audio-groups=8  -o synth.audio-channels=8"
 
 	soundfont_dirs=[
 		('EX', zynthian_engine.ex_data_dir + "/soundfonts/sf2"),
@@ -69,7 +87,14 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 		self.nickname = "FS"
 		self.jackname = "fluidsynth"
 
-		self.command = "/usr/local/bin/fluidsynth -p fluidsynth -a jack -m jack -g 1 -j {}".format(self.fs_options)
+		if "Pi 4" in os.environ.get("RBPI_VERSION"):
+			n_fxgrp = 8
+		else:
+			n_fxgrp = 2
+
+		self.fs_options += " -o synth.effects-groups={}".format(n_fxgrp)
+
+		self.command = "/usr/local/bin/fluidsynth -a jack -m jack -g 1 -j {}".format(self.fs_options)
 		self.command_prompt = "\n> "
 
 		self.start()
@@ -98,7 +123,8 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 	# ---------------------------------------------------------------------------
 
 	def add_layer(self, layer):
-		super().add_layer(layer)
+		self.layers.append(layer)
+		layer.jackname = None
 		layer.part_i=None
 		self.setup_router(layer)
 
@@ -125,21 +151,32 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 
 
 	def set_bank(self, layer, bank):
-		if self.load_soundfont(bank[0]):
-			self.unload_unused_soundfonts()
+		return self.load_bank(bank[0])
+
+
+	def load_bank(self, bank_fpath, unload_unused_sf=True):
+		if self.load_soundfont(bank_fpath):
+			if unload_unused_sf:
+				self.unload_unused_soundfonts()
+			self.set_all_presets()
 			return True
 		else:
 			return False
 
 	# ---------------------------------------------------------------------------
-	# Bank Management
+	# Preset Management
 	# ---------------------------------------------------------------------------
 
 	def get_preset_list(self, bank):
 		logging.info("Getting Preset List for {}".format(bank[2]))
 		preset_list=[]
-		if bank[0] in self.soundfont_index:
-			sfi=self.soundfont_index[bank[0]]
+
+		try:
+			sfi = self.soundfont_index[bank[0]]
+		except:
+			sfi = self.load_bank(bank[0], False)
+
+		if sfi:
 			output=self.proc_cmd("inst {}".format(sfi))
 			for f in output.split("\n"):
 				try:
@@ -148,26 +185,28 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 					bank_lsb=int(bank_msb/128)
 					bank_msb=bank_msb%128
 					title=str.replace(f[8:-1], '_', ' ')
-					preset_list.append((f.strip(),[bank_msb,bank_lsb,prg],title,sfi))
+					preset_list.append([bank[0] + '/' + f.strip(),[bank_msb,bank_lsb,prg],title,bank[0]])
 				except:
 					pass
-		else:
-			logging.warning("Bank {} is not loaded".format(bank[2]))
+
 		return preset_list
 
 
 	def set_preset(self, layer, preset, preload=False):
-		sfi=preset[3]
-		if sfi in self.soundfont_index.values():
-			midi_bank=preset[1][0]+preset[1][1]*128
-			midi_prg=preset[1][2]
-			logging.debug("Set Preset => Layer: {}, SoundFont: {}, Bank: {}, Program: {}".format(layer.part_i, sfi, midi_bank, midi_prg))
-			self.proc_cmd("select {} {} {} {}".format(layer.part_i, sfi, midi_bank, midi_prg))
-			layer.send_ctrl_midi_cc()
-			return True
-		else:
-			logging.warning("SoundFont {} is not loaded".format(sfi))
-			return False
+		try:
+			sfi = self.soundfont_index[preset[3]]
+		except:
+			if layer.set_bank_by_id(preset[3]):
+				sfi = self.soundfont_index[preset[3]]
+			else:
+				return False
+
+		midi_bank=preset[1][0]+preset[1][1]*128
+		midi_prg=preset[1][2]
+		logging.debug("Set Preset => Layer: {}, SoundFont: {}, Bank: {}, Program: {}".format(layer.part_i, sfi, midi_bank, midi_prg))
+		self.proc_cmd("select {} {} {} {}".format(layer.part_i, sfi, midi_bank, midi_prg))
+		layer.send_ctrl_midi_cc()
+		return True
 
 
 	def cmp_presets(self, preset1, preset2):
@@ -202,16 +241,13 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 			sfi=None
 			cre=re.compile(r"loaded SoundFont has ID (\d+)")
 			for line in output.split("\n"):
+				#logging.debug(" => {}".format(line))
 				res=cre.match(line)
 				if res:
 					sfi=int(res.group(1))
 			# If soundfont was loaded succesfully ...
 			if sfi is not None:
 				logging.info("Loaded SoundFont '{}' => {}".format(sf,sfi))
-				# Re-select presets for all layers to prevent instrument change
-				for layer in self.layers:
-					if layer.preset_info:
-						self.set_preset(layer, layer.preset_info)
 				# Insert ID in soundfont_index dictionary
 				self.soundfont_index[sf]=sfi
 				# Return soundfont ID
@@ -219,20 +255,6 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 			else:
 				logging.warning("SoundFont '{}' can't be loaded".format(sf))
 				return False
-
-
-	def setup_router(self, layer):
-		if layer.part_i is not None:
-			# Clear and recreate all routes if the routes for this layer were set already
-			self.set_all_midi_routes()
-		else:
-			# No need to clear routes if there is the only layer to add
-			try:
-				layer.part_i=self.get_free_parts()[0]
-				logging.debug("ADD LAYER => PART {}".format(layer.part_i))
-			except:
-				logging.error("ADD LAYER => NO FREE PARTS!")
-			self.set_layer_midi_routes(layer)
 
 
 	def unload_unused_soundfonts(self):
@@ -249,6 +271,31 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 			logging.info("Unload SoundFont => {}".format(sfi))
 			self.proc_cmd("unload {}".format(sfi))
 			del self.soundfont_index[sf]
+
+
+	# Set presets for all layers to restore soundfont assign (select) after load/unload soundfonts 
+	def set_all_presets(self):
+		for layer in self.layers:
+			if layer.preset_info:
+				self.set_preset(layer, layer.preset_info)
+
+
+	def setup_router(self, layer):
+		if layer.part_i is not None:
+			# Clear and recreate all routes if the routes for this layer were set already
+			self.set_all_midi_routes()
+		else:
+			# No need to clear routes if there is the only layer to add
+			try:
+				i = self.get_free_parts()[0]
+				layer.part_i = i
+				layer.jackname = "{}:((l|r)_{:02d}|fx_(l|r)_({:02d}|{:02d}))".format(self.jackname,i,i*2,i*2+1)
+				self.zyngui.zynautoconnect_audio()
+				logging.debug("Add part {} => {}".format(i, layer.jackname))
+			except Exception as e:
+				logging.error("Can't add part! => {}".format(e))
+
+			self.set_layer_midi_routes(layer)
 
 
 	def set_layer_midi_routes(self, layer):
@@ -277,6 +324,7 @@ class zynthian_engine_fluidsynth(zynthian_engine):
 
 	def clear_midi_routes(self):
 		self.proc_cmd("router_clear")
+
 
 	# ---------------------------------------------------------------------------
 	# API methods

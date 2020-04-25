@@ -111,10 +111,20 @@ class zynthian_engine_zynaddsubfx(zynthian_engine):
 
 		self.osc_target_port = 6693
 
+		try:
+			self.sr = int(self.zyngui.jackd_options['r'])
+		except:
+			self.sr = 44100
+
+		try:
+			self.bs = int(self.zyngui.jackd_options['p'])
+		except:
+			self.bs = 256
+
 		if self.config_remote_display():
-			self.command = "/usr/local/bin/zynaddsubfx -O jack-multi -I jack -P {} -a".format(self.osc_target_port)
+			self.command = "/usr/local/bin/zynaddsubfx -r {} -b {} -O jack-multi -I jack -P {} -a".format(self.sr, self.bs, self.osc_target_port)
 		else:
-			self.command = "/usr/local/bin/zynaddsubfx -O jack-multi -I jack -P {} -a -U".format(self.osc_target_port)
+			self.command = "/usr/local/bin/zynaddsubfx -r {} -b {} -O jack-multi -I jack -P {} -a -U".format(self.sr, self.bs, self.osc_target_port)
 
 		self.command_prompt = "\n\\[INFO] Main Loop..."
 
@@ -186,7 +196,7 @@ class zynthian_engine_zynaddsubfx(zynthian_engine):
 				bank_lsb=int(index/128)
 				bank_msb=bank[1]
 				prg=index%128
-				preset_list.append((preset_fpath,[bank_msb,bank_lsb,prg],title,ext,f))
+				preset_list.append([preset_fpath,[bank_msb,bank_lsb,prg],title,ext,f])
 		return preset_list
 
 
@@ -464,7 +474,7 @@ class zynthian_engine_zynaddsubfx(zynthian_engine):
 	@classmethod
 	def zynapi_get_banks(cls):
 		banks=[]
-		for b in cls.get_dirlist(cls.bank_dirs):
+		for b in cls.get_dirlist(cls.bank_dirs, False):
 			banks.append({
 				'text': b[2],
 				'name': b[4],
@@ -526,8 +536,7 @@ class zynthian_engine_zynaddsubfx(zynthian_engine):
 
 	@classmethod
 	def zynapi_install(cls, dpath, bank_path):
-		
-		
+
 		if os.path.isdir(dpath):
 			# Get list of directories (banks) containing xiz files ...
 			xiz_files = check_output("find \"{}\" -type f -iname *.xiz".format(dpath), shell=True).decode("utf-8").split("\n")

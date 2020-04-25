@@ -29,7 +29,6 @@ import tkinter
 from time import sleep
 from string import Template
 from datetime import datetime
-from threading  import Lock
 
 # Zynthian specific modules
 from zyngine import zynthian_controller
@@ -60,8 +59,6 @@ class zynthian_gui_control(zynthian_gui_selector):
 		self.x_zctrl=None
 		self.y_zctrl=None
 
-		# Create Lock object to avoid concurrence problems
-		self.lock=Lock();
 		# Create "pusher" canvas => used in mode "select"
 		self.pusher= tkinter.Frame(self.main_frame,
 			width=zynthian_gui_config.ctrl_width,
@@ -79,14 +76,19 @@ class zynthian_gui_control(zynthian_gui_selector):
 
 	def hide(self):
 		super().hide()
-		if self.shown:
-			for zc in self.zgui_controllers: zc.hide()
-			if self.zselector: self.zselector.hide()
+		#if self.shown:
+		#	for zc in self.zgui_controllers: zc.hide()
+		#	if self.zselector: self.zselector.hide()
 
 
 	def fill_list(self):
 		self.list_data = []
+
 		self.layers = self.zyngui.screens['layer'].get_fxchain_layers()
+		# If no FXChain layers, then use the curlayer itself (probably amixer_layer)
+		if len(self.layers)==0:
+			self.layers = [self.zyngui.curlayer]
+
 		i = 0
 		for layer in self.layers:
 			j = 0
@@ -104,46 +106,50 @@ class zynthian_gui_control(zynthian_gui_selector):
 
 	def set_controller_screen(self):
 		#Get Mutex Lock 
-		self.lock.acquire()
+		#self.zyngui.lock.acquire()
 
 		#Get screen info
 		if self.index < len(self.list_data):
-			screen_info=self.list_data[self.index]
-			screen_title=screen_info[2]
-			screen_layer=screen_info[3]
+			screen_info = self.list_data[self.index]
+			screen_title = screen_info[2]
+			screen_layer = screen_info[3]
 
 			#Get controllers for the current screen
 			self.zyngui.curlayer.set_active_screen_index(self.index)
-			self.zcontrollers=screen_layer.get_ctrl_screen(screen_title)
-			
-			#Setup GUI Controllers
-			if self.zcontrollers:
-				logging.debug("SET CONTROLLER SCREEN {}".format(screen_title))
-				#Configure zgui_controllers
-				i=0
-				for ctrl in self.zcontrollers:
-					try:
-						#logging.debug("CONTROLLER ARRAY {} => {} ({})".format(i, ctrl.symbol, ctrl.short_name))
-						self.set_zcontroller(i,ctrl)
-						i=i+1
-					except Exception as e:
-						logging.exception("Controller %s (%d) => %s" % (ctrl.short_name,i,e))
-						self.zgui_controllers[i].hide()
+			self.zcontrollers = screen_layer.get_ctrl_screen(screen_title)
 
-				#Hide rest of GUI controllers
-				for i in range(i,len(self.zgui_controllers)):
+		else:
+			self.zcontrollers = None
+
+
+		#Setup GUI Controllers
+		if self.zcontrollers:
+			logging.debug("SET CONTROLLER SCREEN {}".format(screen_title))
+			#Configure zgui_controllers
+			i=0
+			for ctrl in self.zcontrollers:
+				try:
+					#logging.debug("CONTROLLER ARRAY {} => {} ({})".format(i, ctrl.symbol, ctrl.short_name))
+					self.set_zcontroller(i,ctrl)
+					i=i+1
+				except Exception as e:
+					logging.exception("Controller %s (%d) => %s" % (ctrl.short_name,i,e))
 					self.zgui_controllers[i].hide()
 
-			#Hide All GUI controllers
-			else:
-				for zgui_controller in self.zgui_controllers:
-					zgui_controller.hide()
+			#Hide rest of GUI controllers
+			for i in range(i,len(self.zgui_controllers)):
+				self.zgui_controllers[i].hide()
 
-		#Set/Restore XY controllers highlight
-		self.set_xyselect_controllers()
+			#Set/Restore XY controllers highlight
+			self.set_xyselect_controllers()
+
+		#Hide All GUI controllers
+		else:
+			for zgui_controller in self.zgui_controllers:
+				zgui_controller.hide()
 
 		#Release Mutex Lock
-		self.lock.release()
+		#self.zyngui.lock.release()
 
 
 	def set_zcontroller(self, i, ctrl):
@@ -255,6 +261,7 @@ class zynthian_gui_control(zynthian_gui_selector):
 			return ''
 
 		else:
+			self.zyngui.screens['layer'].restore_curlayer()
 			return None
 
 
@@ -285,9 +292,6 @@ class zynthian_gui_control(zynthian_gui_selector):
 
 
 	def zyncoder_read(self):
-		#Get Mutex Lock
-		self.lock.acquire()
-
 		#Read Controller
 		if self.mode=='control' and self.zcontrollers:
 			for i, zctrl in enumerate(self.zcontrollers):
@@ -305,9 +309,6 @@ class zynthian_gui_control(zynthian_gui_selector):
 
 		elif self.mode=='select':
 			super().zyncoder_read()
-
-		#Release Mutex Lock
-		self.lock.release()
 
 
 	def zyncoder_read_xyselect(self, zctrl, i):
@@ -390,7 +391,7 @@ class zynthian_gui_control(zynthian_gui_selector):
 			return
 		if self.mode=='select':
 			super().cb_listbox_release(event)
-		else:
+		elif self.listbox_push_ts:
 			dts=(datetime.now()-self.listbox_push_ts).total_seconds()
 			#logging.debug("LISTBOX RELEASE => %s" % dts)
 			if dts<0.3:
@@ -404,7 +405,7 @@ class zynthian_gui_control(zynthian_gui_selector):
 			return
 		if self.mode=='select':
 			super().cb_listbox_motion(event)
-		else:
+		elif self.listbox_push_ts:
 			dts=(datetime.now()-self.listbox_push_ts).total_seconds()
 			if dts>0.1:
 				index=self.get_cursel()
