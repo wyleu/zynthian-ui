@@ -3,7 +3,7 @@
 # ******************************************************************************
 # ZYNTHIAN PROJECT: Zynthian Control Device Driver
 #
-# Zynthian Control Device Driver for "riband wearable controller"
+# Zynthian Control Device Driver for "Behringer Motor61"
 #
 # Copyright (C) 2015-2024 Fernando Moyano <jofemodo@zynthian.org>
 #                         Brian Walton <brian@riban.co.uk>
