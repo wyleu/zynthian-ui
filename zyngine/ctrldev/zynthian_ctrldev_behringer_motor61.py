@@ -7,6 +7,7 @@
 #
 # Copyright (C) 2015-2024 Fernando Moyano <jofemodo@zynthian.org>
 #                         Brian Walton <brian@riban.co.uk>
+#						  wyleu <wyleus@gmail.com>
 #
 # ******************************************************************************
 #
