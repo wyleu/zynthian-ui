@@ -41,10 +41,25 @@ class zynthian_ctrldev_behringer_motor61(zynthian_ctrldev_base):
 
 	dev_ids = ["BEHRINGER International GmbH MOTÖR61 Keyboard"]
 	
-	unroute_from_chains = False		# Keep the input device routed to chains when driver is loaded
+	unroute_from_chains = True		# Keep the input device routed to chains when driver is loaded
 
 	def init(self):
 		self.state_manager.add_slow_update_callback(60, self.keep_alive)
+		print('INit behringer_motor61')
+
+	def midi_event(self, ev):
+		evtype = (ev[0] >> 4) & 0x0F
+
+		print('EVTYPE:-', evtype)
+		if evtype == 0x9:
+			note = ev[1] & 0x7F
+			vel = ev[2] & 0x7F
+			
+			if vel > 0 and note < self.zynseq.seq_in_bank:
+				# Toggle pad
+				#  self.zynseq.libseq.togglePlayState(self.zynseq.bank, note)
+				return True
+		return False
 
 	def end(self):
 		self.state_manager.remove_slow_update_callback(self.keep_alive)
