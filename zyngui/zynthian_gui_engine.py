@@ -5,7 +5,7 @@
 #
 # Zynthian GUI Engine Selector Class
 #
-# Copyright (C) 2015-2024 Fernando Moyano <jofemodo@zynthian.org>
+# Copyright (C) 2015-2026 Fernando Moyano <jofemodo@zynthian.org>
 #
 # ******************************************************************************
 #
@@ -86,6 +86,8 @@ class zynthian_gui_engine(zynthian_gui_selector):
         # ListBox for Categories
         self.lb2_bg = zynthian_gui_config.color_panel_bg
         self.lb2_fg = zynthian_gui_config.color_panel_tx
+        self.listbox2_y0 = None
+        self.listbox2_dragging = False
         self.listbox2 = tkinter.Listbox(
             self.main_frame,
             font=zynthian_gui_config.font_listbox,
@@ -144,7 +146,8 @@ class zynthian_gui_engine(zynthian_gui_selector):
             text="★★★★★",
             # text="✱✱✱✱✱",
             font=(zynthian_gui_config.font_family, star_fs),
-            fill=color_star_off)
+            fill=color_star_off,
+            tags="stars")
         self.quality_stars_label = self.info_canvas.create_text(
             xpos,
             ypos,
@@ -153,7 +156,8 @@ class zynthian_gui_engine(zynthian_gui_selector):
             width=info_width,
             text="",
             font=(zynthian_gui_config.font_family, star_fs),
-            fill=color_star)
+            fill=color_star,
+            tags="stars")
         ypos += int(1.2 * star_fs)
         self.complexity_stars_bg_label = self.info_canvas.create_text(
             xpos,
@@ -163,7 +167,8 @@ class zynthian_gui_engine(zynthian_gui_selector):
             width=info_width,
             text="⚈⚈⚈⚈⚈",
             font=(zynthian_gui_config.font_family, star_fs),
-            fill=color_star_off)
+            fill=color_star_off,
+            tags="stars")
         self.complexity_stars_label = self.info_canvas.create_text(
             xpos,
             ypos,
@@ -172,7 +177,8 @@ class zynthian_gui_engine(zynthian_gui_selector):
             width=info_width,
             text="",
             font=(zynthian_gui_config.font_family, star_fs),
-            fill=color_star)
+            fill=color_star,
+            tags="stars")
         ypos += int(1.6 * star_fs)
 
         self.description_label = self.info_canvas.create_text(
@@ -198,7 +204,12 @@ class zynthian_gui_engine(zynthian_gui_selector):
         self.main_frame.columnconfigure(2, minsize=ctrl_width, weight=self.sidebar_shown)
         if self.info_canvas:
             self.info_canvas.configure(height=int(0.6 * self.height))
-            # self.description_label.configure(height=int(0.35 * self.height))
+            ctrl_width = int(self.layout['ctrl_width'] * self.width)
+            star_fs = int(ctrl_width * 0.16)
+            xpos = int(0.1 * star_fs)
+            info_width = ctrl_width - xpos
+            self.info_canvas.itemconfigure("stars", font=(zynthian_gui_config.font_family, star_fs))
+            self.info_canvas.itemconfigure(self.description_label, width=info_width)
 
     def get_info(self, eng_code=None):
         if not eng_code:
@@ -216,8 +227,6 @@ class zynthian_gui_engine(zynthian_gui_selector):
         complexity_stars = "⚈" * eng_info["COMPLEX"]
         self.info_canvas.itemconfigure(self.complexity_stars_label, text=complexity_stars)
         self.info_canvas.itemconfigure(self.description_label, text=eng_info["DESCR"])
-        # self.description_label.delete("1.0", tkinter.END)
-        # self.description_label.insert("1.0", eng_info["DESCR"])
 
     def show_details(self, eng_code=None):
         eng_info = self.get_info(eng_code)
@@ -227,12 +236,11 @@ class zynthian_gui_engine(zynthian_gui_selector):
             path = eng_info["TYPE"]
         if self.engine_cats:
             path = path + "/" + eng_info["CAT"]
-        text = path + "\n"
+        text = f"{eng_info['NAME']}\n\n{path}\n"
         text += "Quality: " + "★" * eng_info["QUALITY"] + "\n"
         text += "Complexity: " + "⚈" * eng_info["COMPLEX"] + "\n\n"
         text += eng_info["DESCR"]
-        self.zyngui.screens["details"].setup(eng_info["TITLE"], text)
-        self.zyngui.show_screen("details")
+        self.zyngui.show_info(text)
 
     def get_engines_by_cat(self):
         self.chain_manager.get_engine_info()
@@ -407,6 +415,7 @@ class zynthian_gui_engine(zynthian_gui_selector):
         self.listbox2.itemconfig(self.cat_index, {'bg': self.lb2_bg, 'fg': self.lb2_fg})
         self.cat_index = max(0, min(cat_index, len(self.engine_cats) - 1))
         self.listbox2.itemconfig(self.cat_index, {'bg': self.lb2_fg, 'fg': self.lb2_bg})
+        self.listbox2.see(self.cat_index)
         # Load engines for the category
         self.recall_context_index()
         self.update_list()
@@ -454,9 +463,6 @@ class zynthian_gui_engine(zynthian_gui_selector):
     def cb_listbox2_release(self, event):
         if self.zyngui.cb_touch_release(event):
             return "break"
-        cursel = self.listbox2.nearest(event.y)
-        if cursel != self.cat_index:
-            self.set_cat(cursel)
 
     def cb_listbox2_wheel(self, event):
         if event.num == 5 or event.delta == -120:

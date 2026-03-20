@@ -65,13 +65,6 @@ class zynthian_gui_control(zynthian_gui_selector):
         self.screen_type = None
         self.screen_title = None
 
-        self.buttonbar_config = [
-            ("arrow_left", '<< Prev'),
-            ("zynswitch 0,B", 'Preset'),
-            ("zynswitch 3,S", 'Pages'),
-            ("arrow_right", 'Next >>')
-        ]
-
         super().__init__(selcap, wide=False, loading_anim=False, tiny_ctrls=False)
 
         # Configure layout
@@ -96,9 +89,6 @@ class zynthian_gui_control(zynthian_gui_selector):
             zynsigman.register_queued(zynsigman.S_PROCESSOR, zynsigman.SS_PROCESSOR_CTRL_SCREENS, self.cb_ctrl_screens)
             zynsigman.register_queued(zynsigman.S_MIDI, zynsigman.SS_MIDI_PC, self.cb_midi_pc)
             zynsigman.register(zynsigman.S_MIDI, zynsigman.SS_MIDI_CC, self.cb_midi_cc)
-            if zynthian_gui_config.enable_touch_navigation:
-                zynsigman.register_queued(zynsigman.S_GUI, zynsigman.SS_GUI_SHOW_SIDEBAR, self.cb_show_sidebar)
-                zynsigman.register_queued(zynsigman.S_GUI, zynsigman.SS_GUI_CONTROL_MODE, self.cb_control_mode)
         #self.set_mode_control()
         return True
 
@@ -110,9 +100,6 @@ class zynthian_gui_control(zynthian_gui_selector):
             zynsigman.unregister(zynsigman.S_PROCESSOR, zynsigman.SS_PROCESSOR_CTRL_SCREENS, self.cb_ctrl_screens)
             zynsigman.unregister(zynsigman.S_MIDI, zynsigman.SS_MIDI_PC, self.cb_midi_pc)
             zynsigman.unregister(zynsigman.S_MIDI, zynsigman.SS_MIDI_CC, self.cb_midi_cc)
-            if zynthian_gui_config.enable_touch_navigation:
-                zynsigman.unregister(zynsigman.S_GUI, zynsigman.SS_GUI_SHOW_SIDEBAR, self.cb_show_sidebar)
-                zynsigman.unregister(zynsigman.S_GUI, zynsigman.SS_GUI_CONTROL_MODE, self.cb_control_mode)
         super().hide()
 
     def cb_set_active_chain(self, active_chain_id):
@@ -164,17 +151,9 @@ class zynthian_gui_control(zynthian_gui_selector):
                 zctrl.grid_remove()
         self.update_layout()
 
-    def cb_show_sidebar(self, shown):
-        self.set_button_status(2, not shown)
-
     def backbutton_short_touch_action(self):
         if not self.back_action():
             self.zyngui.back_screen()
-
-    def cb_control_mode(self, mode):
-        self.set_button_status(2, (mode == "select"))
-        if mode == "control":
-            self.set_mode_control()
 
     def configure_processors(self, curproc=None):
         if not curproc:
@@ -186,16 +165,6 @@ class zynthian_gui_control(zynthian_gui_selector):
                 self.processors = [curproc]
             else:
                 self.processors = self.chain_manager.get_processors(curproc.chain_id)
-        try:
-            self.init_buttonbar(curproc.engine.buttonbar_config)
-        except:
-            self.init_buttonbar([
-            ("arrow_left", '<< Prev'),
-            ("zynswitch 0,B", 'Preset'),
-            ("zynswitch 3,S", 'Pages'),
-            ("arrow_right", 'Next >>')
-        ])
-
 
     def fill_list(self):
         self.list_data = []
@@ -474,7 +443,6 @@ class zynthian_gui_control(zynthian_gui_selector):
                             fg=zynthian_gui_config.color_ctrl_tx_off)
         self.select(self.index)
         self.set_select_path()
-        self.set_button_status(2, True)
 
     def set_mode_control(self):
         self.mode = 'control'
@@ -487,7 +455,6 @@ class zynthian_gui_control(zynthian_gui_selector):
         for i in range(0, len(self.zgui_controllers)):
             self.zgui_controllers[i].enable()
         self.set_select_path()
-        self.set_button_status(2, False)
         self.select()
 
     def previous_page(self, wrap=False):

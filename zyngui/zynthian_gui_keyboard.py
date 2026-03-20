@@ -5,7 +5,7 @@
 #
 # Zynthian GUI keyboard Class
 #
-# Copyright (C) 2015-2023 Fernando Moyano <jofemodo@zynthian.org>
+# Copyright (C) 2015-2026 Fernando Moyano <jofemodo@zynthian.org>
 #                         Brian Walton <brian@riban.co.uk>
 #
 # ******************************************************************************
@@ -32,6 +32,7 @@ from threading import Timer
 # Zynthian specific modules
 from zyncoder.zyncore import lib_zyncore
 from zyngui import zynthian_gui_config
+from zyngui.zynthian_gui_fullscreen_modal import zynthian_gui_fullscreen_modal
 
 # ------------------------------------------------------------------------------
 # Zynthian Onscreen Keyboard GUI Class
@@ -42,11 +43,14 @@ OSK_QWERTY = 1
 
 
 # Class implements renaming dialog
-class zynthian_gui_keyboard():
+class zynthian_gui_keyboard(zynthian_gui_fullscreen_modal):
 
     # Function to initialise class
     #  function: Callback function called when <Enter> pressed
     def __init__(self):
+        super().__init__()
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
         self.zyngui = zynthian_gui_config.zyngui
         self.columns = 10  # Quantity of columns in keyboard grid
         self.rows = 5  # Quantity of rows in keyboard grid
@@ -58,23 +62,11 @@ class zynthian_gui_keyboard():
         self.ctrl_order = zynthian_gui_config.layout['ctrl_order']
         self.last_key = None # Last pressed key
 
-        # Geometry vars
-        self.width = zynthian_gui_config.screen_width
-        self.height = zynthian_gui_config.screen_height - zynthian_gui_config.topbar_height
-
-
         # Fonts
         self.font_button = (zynthian_gui_config.font_family, int(1.2*zynthian_gui_config.font_size))
 
-        # Create main frame
-        self.main_frame = tkinter.Frame(zynthian_gui_config.top,
-                                        width=zynthian_gui_config.screen_width,
-                                        height=zynthian_gui_config.screen_height,
-                                        bg=zynthian_gui_config.color_bg)
-        self.main_frame.grid_propagate(False)
-
         # Display string being edited
-        self.text_canvas = tkinter.Canvas(self.main_frame, width=self.width, height=zynthian_gui_config.topbar_height)
+        self.text_canvas = tkinter.Canvas(self, width=self.width, height=zynthian_gui_config.topbar_height)
         self.text_label = self.text_canvas.create_text(self.width / 2, zynthian_gui_config.topbar_height / 2,
                                                        font=zynthian_gui_config.font_topbar,
                                                        # font=tkFont.Font(family=zynthian_gui_config.font_topbar[0],
@@ -83,14 +75,13 @@ class zynthian_gui_keyboard():
         self.text_canvas.grid(column=0, row=0, sticky="nsew")
 
         # Display keyboard grid
-        self.key_canvas = tkinter.Canvas(self.main_frame, width=self.width, height=self.height, bg="grey")
+        self.key_canvas = tkinter.Canvas(self, bg="grey")
         self.key_canvas.grid_propagate(False)
         self.key_canvas.grid(column=0, row=1, sticky="nesw")
         self.set_mode(OSK_QWERTY)
 
         self.hold_timer = Timer(0.8, self.bold_press)
         self.keypress_queue = []
-        self.shown = False
 
     # Function to populate keyboard with keys for requested mode
     #  mode: OSK mode [OSK_NUMPAD | OSK_QWERTY]
@@ -106,6 +97,8 @@ class zynthian_gui_keyboard():
             self.columns = 10
             self.rows = 5
             span = 1
+        self.width = zynthian_gui_config.display_width
+        self.height = zynthian_gui_config.display_height - zynthian_gui_config.topbar_height
         self.key_width = (self.width - 2) / self.columns
         self.key_height = (self.height - 2) / self.rows
         for row in range(self.rows - 1):
@@ -284,9 +277,8 @@ class zynthian_gui_keyboard():
     # Function to hide dialog
     def hide(self):
         if self.shown:
-            self.shown = False
+            super().hide()
             self.keypress_queue = []
-            self.main_frame.grid_forget()
 
     # Function to show keyboard screen
     #  function: Function to call when "Enter" selected
@@ -309,7 +301,7 @@ class zynthian_gui_keyboard():
             self.highlight(self.selected_button)
             self.setup_zynpots()
             self.refresh_keys()
-            self.main_frame.grid(row=0, column=zynthian_gui_config.main_screen_column)
+            self.place(x=0, y=0)
             self.shown = True
 
     # Function to register encoders

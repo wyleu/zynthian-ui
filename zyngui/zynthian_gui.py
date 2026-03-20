@@ -57,12 +57,11 @@ from zyngui.zynthian_gui_splash import zynthian_gui_splash
 from zyngui.zynthian_gui_loading import zynthian_gui_loading
 from zyngui.zynthian_gui_option import zynthian_gui_option
 from zyngui.zynthian_gui_file_selector import zynthian_gui_file_selector
-from zyngui.zynthian_gui_details import zynthian_gui_details
 from zyngui.zynthian_gui_admin import zynthian_gui_admin
 from zyngui.zynthian_gui_snapshot import zynthian_gui_snapshot
+from zyngui.zynthian_gui_add_chain import zynthian_gui_add_chain
 from zyngui.zynthian_gui_chain_options import zynthian_gui_chain_options
 from zyngui.zynthian_gui_chain_manager import zynthian_gui_chain_manager
-from zyngui.zynthian_gui_add_chain import zynthian_gui_add_chain
 from zyngui.zynthian_gui_processor_options import zynthian_gui_processor_options
 from zyngui.zynthian_gui_engine import zynthian_gui_engine
 from zyngui.zynthian_gui_midi_chan import zynthian_gui_midi_chan
@@ -82,7 +81,6 @@ from zyngui.zynthian_gui_midi_profile import zynthian_gui_midi_profile
 from zyngui.zynthian_gui_zs3 import zynthian_gui_zs3
 from zyngui.zynthian_gui_zs3_options import zynthian_gui_zs3_options
 from zyngui.zynthian_gui_confirm import zynthian_gui_confirm
-from zyngui.zynthian_gui_chain_menu import zynthian_gui_chain_menu
 from zyngui.zynthian_gui_midi_recorder import zynthian_gui_midi_recorder
 from zyngui.zynthian_gui_arranger import zynthian_gui_arranger
 from zyngui.zynthian_gui_pated_notes import zynthian_gui_pated_notes
@@ -94,6 +92,8 @@ from zyngui.zynthian_gui_cv_config import zynthian_gui_cv_config
 from zyngui.zynthian_gui_wifi import zynthian_gui_wifi
 from zyngui.zynthian_gui_bluetooth import zynthian_gui_bluetooth
 from zyngui.zynthian_gui_control_test import zynthian_gui_control_test
+from zyngui.zynthian_gui_fast_menu import zynthian_gui_fast_menu
+from zyngui.zynthian_gui_selector_grid import zynthian_gui_selector_grid
 
 # TODO This constant should go somewhere else
 ZMOP_MOD_INDEX = 16   # Dedicated zmop for MOD-UI
@@ -272,17 +272,16 @@ class zynthian_gui:
 
     def init_wsleds(self):
         if zynthian_gui_config.touch_keypad:
-            if zynthian_gui_config.touch_keypad_option == "V5":
-                from zyngui.zynthian_wsleds_v5touch import zynthian_wsleds_v5touch
-                self.wsleds = zynthian_wsleds_v5touch(self)
-                self.wsleds.start()
-        elif zynthian_gui_config.check_wiring_layout(["Z2"]):
-            from zyngui.zynthian_wsleds_z2 import zynthian_wsleds_z2
-            self.wsleds = zynthian_wsleds_z2(self)
+            from zyngui.zynthian_wsleds_v5touch import zynthian_wsleds_v5touch
+            self.wsleds = zynthian_wsleds_v5touch(self)
             self.wsleds.start()
         elif zynthian_gui_config.check_wiring_layout(["V5"]):
             from zyngui.zynthian_wsleds_v5 import zynthian_wsleds_v5
             self.wsleds = zynthian_wsleds_v5(self)
+            self.wsleds.start()
+        elif zynthian_gui_config.check_wiring_layout(["Z2"]):
+            from zyngui.zynthian_wsleds_z2 import zynthian_wsleds_z2
+            self.wsleds = zynthian_wsleds_z2(self)
             self.wsleds.start()
 
     # ---------------------------------------------------------------------------
@@ -487,7 +486,6 @@ class zynthian_gui:
         self.screens['keyboard'] = zynthian_gui_keyboard.zynthian_gui_keyboard()
         self.screens['option'] = zynthian_gui_option()
         self.screens['file_selector'] = zynthian_gui_file_selector()
-        self.screens['details'] = zynthian_gui_details()
         self.screens['engine'] = zynthian_gui_engine()
         self.screens['chain_options'] = zynthian_gui_chain_options()
         self.screens['chain_manager'] = zynthian_gui_chain_manager()
@@ -513,6 +511,8 @@ class zynthian_gui:
         self.screens['tempo'] = self.screens['control']
         self.screens['admin'] = zynthian_gui_admin()
         self.screens['mixer'] = zynthian_gui_mixer()
+        self.screens['fast_menu'] = zynthian_gui_fast_menu()
+        self.screens['grid_sel'] = zynthian_gui_selector_grid()
 
         # Create UI Apps Screens
         self.screens['audio_player'] = self.screens['control']
@@ -619,8 +619,6 @@ class zynthian_gui:
 
         # Show initial screen
         self.show_screen(init_screen, zynthian_gui.SCREEN_HMODE_RESET)
-
-        #self.screens['root'] = self.screens['mixer']
 
     def hide_screens(self, exclude=None):
         if not exclude:
@@ -1234,17 +1232,17 @@ class zynthian_gui:
     def cuia_power_save(self, params=None):
         self.state_manager.set_power_save_mode(True)
 
-    def cuia_power_off(self, params=None):
+    def cuia_power(self, params=None):
         if params == ['CONFIRM']:
             self.screens['admin'].power_off_confirmed()
         else:
-            self.screens['admin'].power_off()
+            self.screens['admin'].power()
 
     def cuia_reboot(self, params=None):
         if params == ['CONFIRM']:
             self.screens['admin'].reboot_confirmed()
         else:
-            self.screens['admin'].reboot()
+            self.screens['admin'].power()
 
     def cuia_restart_ui(self, params=None):
         self.screens['admin'].restart_gui()
@@ -1597,6 +1595,14 @@ class zynthian_gui:
     # Menu, Chain Control & Options, Bank/Presets:
     # -------------------------------------------------------------------
 
+    def cuia_show_navigation_grid(self, params):
+        if params and len(params) >= 2:
+            self.screens["grid_sel"].setup(params[0], params[1])
+            self.show_screen("grid_sel")
+
+    def cuia_fast_menu(self, params=None):
+        self.show_screen("fast_menu")
+
     def cuia_chain_control(self, params=None):
         try:
             # Select chain by index
@@ -1886,18 +1892,6 @@ class zynthian_gui:
         except (AttributeError, TypeError):
             pass
 
-    def cuia_show_buttonbar(self, params=None):
-        try:
-            self.screens[self.current_screen].show_buttonbar(True)
-        except (AttributeError, TypeError):
-            pass
-
-    def cuia_hide_buttonbar(self, params=None):
-        try:
-            self.screens[self.current_screen].show_buttonbar(False)
-        except (AttributeError, TypeError):
-            pass
-
     def cuia_show_sidebar(self, params=None):
         try:
             self.screens[self.current_screen].show_sidebar(True)
@@ -2170,7 +2164,7 @@ class zynthian_gui:
             return True
 
         elif i == 3:
-            self.cuia_power_off()
+            self.cuia_power()
             return True
 
         # Custom ZynSwitches

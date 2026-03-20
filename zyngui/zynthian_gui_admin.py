@@ -229,8 +229,6 @@ class zynthian_gui_admin(zynthian_gui_selector_info):
                                     "settings.png"]))
         if not zynthian_gui_config.wiring_layout.startswith("V5"):
             match zynthian_gui_config.touch_navigation:
-                case "touch_widgets":
-                    touch_navigation_option = "touch-widgets"
                 case "v5_keypad_left":
                     touch_navigation_option = "V5 keypad at Left"
                 case "v5_keypad_right":
@@ -286,10 +284,8 @@ class zynthian_gui_admin(zynthian_gui_selector_info):
         if zynthian_gui_config.debug_thread:
             self.list_data.append((self.exit_to_console, 0, "Exit",
                                    ["Stop zynthian UI but do not reboot.", "poweroff.png"]))
-        self.list_data.append((self.reboot, 0, "Reboot",
-                               ["Reboot (restart) zynthian.", "reboot.png"]))
-        self.list_data.append((self.power_off, 0, "Power Off",
-                               ["Turn off zynthian.\n\nPower is still fed to the device but it is effectively off.",
+        self.list_data.append((self.power, 0, "Power Off",
+                               ["Turn off or reboot zynthian.\n\nPower is still fed to the device but it is effectively off.",
                                 "poweroff.png"]))
 
         super().fill_list()
@@ -541,7 +537,6 @@ class zynthian_gui_admin(zynthian_gui_selector_info):
     def touch_navigation_menu(self):
         self.zyngui.screens['option'].config("Touch Navigation",
                                              {"None": "",
-                                              "Touch-widgets": "touch_widgets",
                                               "V5 keypad at left": "v5_keypad_left",
                                               "V5 keypad at right": "v5_keypad_right"},
                                              self.touch_navigation_cb,
@@ -554,7 +549,7 @@ class zynthian_gui_admin(zynthian_gui_selector_info):
                                      self.touch_navigation_cb_confirmed, value)
 
     def touch_navigation_cb_confirmed(self, value=""):
-        zynconf.save_config({"ZYNTHIAN_UI_TOUCH_NAVIGATION2": value})
+        zynconf.save_config({"ZYNTHIAN_UI_TOUCH_NAVIGATION": value})
         self.restart_gui()
 
     def visible_chains_cb(self, value):
@@ -765,21 +760,23 @@ class zynthian_gui_admin(zynthian_gui_selector_info):
         self.last_state_action()
         self.zyngui.exit(101)
 
-    def reboot(self):
-        self.zyngui.show_confirm("Do you really want to reboot?", self.reboot_confirmed)
+    def power(self):
+        self.zyngui.screens["grid_sel"].setup("Power", [
+            {"icon": "cancel.png", "title": "Cancel", "action": self.zyngui.close_screen},
+            {"icon": "poweroff.png", "title": "Shutdown", "action": self.power_off_confirmed},
+            {"icon": "reboot.png", "title": "Reboot", "action": self.reboot_confirmed}
+        ])
+        self.zyngui.show_screen("grid_sel")
 
     def reboot_confirmed(self, params=None):
         logging.info("REBOOT")
-        self.zyngui.show_splash("Rebooting")
+        self.zyngui.show_splash("Rebooting...")
         self.last_state_action()
         self.zyngui.exit(100)
 
-    def power_off(self):
-        self.zyngui.show_confirm("Do you really want to power off?", self.power_off_confirmed)
-
     def power_off_confirmed(self, params=None):
         logging.info("POWER OFF")
-        self.zyngui.show_splash("Powering Off")
+        self.zyngui.show_splash("Shutting down...")
         self.last_state_action()
         self.zyngui.exit(0)
 
@@ -788,5 +785,9 @@ class zynthian_gui_admin(zynthian_gui_selector_info):
             self.state_manager.save_last_state_snapshot()
         else:
             self.state_manager.delete_last_state_snapshot()
+        try:
+            zynconf.save_config({"ZYNTHIAN_TOUCH_SHOWN": zynthian_gui_config.touch_shown})
+        except:
+            pass
 
 # ------------------------------------------------------------------------------
