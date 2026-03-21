@@ -41,6 +41,7 @@ import zyngine.zynthian_lv2 as zynthian_lv2
 from zyngine.zynthian_engine import zynthian_engine
 from zyngine.zynthian_controller import zynthian_controller
 from zyngine.ctrlinfo import *
+from zyngine.zynthian_signal_manager import zynsigman
 
 # ------------------------------------------------------------------------------
 # Jalv Engine Class => Engine for LV2 plugins
@@ -748,7 +749,9 @@ class zynthian_engine_jalv(zynthian_engine):
                     else:
                         continue
 
-            # logging.debug("Controller {} info =>\n{}!".format(symbol, info))
+            #logging.debug("Controller {} info =>\n{}!".format(symbol, info))
+            #logging.debug(f"Controller {symbol} group => {info['group_symbol']}")
+
             try:
                 display_priority = info['display_priority']
                 if info['group_display_priority'] > 0:
@@ -979,6 +982,8 @@ class zynthian_engine_jalv(zynthian_engine):
                 self.proc_cmd("%s=%s" % (zctrl.symbol, zctrl.value))
             else:
                 self.proc_cmd("%s=%.6f" % (zctrl.symbol, zctrl.value))
+        if zctrl.symbol == "bypass":
+            zynsigman.send_queued(zynsigman.S_PROCESSOR, zynsigman.SS_PROCESSOR_BYPASS, zctrl=zctrl)
 
     # ---------------------------------------------------------------------------
     # API methods
